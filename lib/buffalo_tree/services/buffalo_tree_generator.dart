@@ -41,17 +41,31 @@ class BuffaloTreeGenerator {
     int nextId = 1;
 
     // Create one founder buffalo per unit
+    // Create two founder buffaloes per unit (matching React logic)
     for (int u = 0; u < units; u++) {
-      final BuffaloNode founder = BuffaloNode(
+      // First founder
+      final BuffaloNode founder1 = BuffaloNode(
         id: 'buffalo-$nextId',
-        name: '$rootName Unit ${u + 1}',
-        birthYear: startYear - 3, // Start at age 3 (mature for breeding)
+        name: '$rootName Unit ${u + 1} A',
+        birthYear: startYear - 5, // Start at age 5 (mature, 60+ months)
         generation: 0,
         unit: u + 1,
       );
       nextId++;
-      allNodes.add(founder);
-      roots.add(founder);
+      allNodes.add(founder1);
+      roots.add(founder1);
+
+      // Second founder
+      final BuffaloNode founder2 = BuffaloNode(
+        id: 'buffalo-$nextId',
+        name: '$rootName Unit ${u + 1} B',
+        birthYear: startYear - 5, // Start at age 5 (mature, 60+ months)
+        generation: 0,
+        unit: u + 1,
+      );
+      nextId++;
+      allNodes.add(founder2);
+      roots.add(founder2);
     }
 
     // Simulate years and breeding
@@ -64,6 +78,7 @@ class BuffaloTreeGenerator {
           .toList();
 
       for (final BuffaloNode mom in moms) {
+        // AI Injections: 100% Female Births
         final BuffaloNode calf = BuffaloNode(
           id: 'buffalo-$nextId',
           name: '${mom.name.split(' ').first} Jr. $year',
@@ -77,11 +92,6 @@ class BuffaloTreeGenerator {
 
         // Add child to parent's children list
         mom.children.add(calf);
-      }
-
-      // Age all buffaloes
-      for (final BuffaloNode buffalo in allNodes) {
-        // Age is calculated dynamically based on current year vs birth year
       }
     }
 

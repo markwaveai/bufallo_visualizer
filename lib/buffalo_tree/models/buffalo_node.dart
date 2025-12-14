@@ -10,7 +10,9 @@ class BuffaloNode {
     this.parentId,
     this.unit = 1,
     List<BuffaloNode>? children,
-  }) : children = children ?? [];
+    Map<String, dynamic>? data,
+  }) : children = children ?? [],
+       data = data ?? const {};
 
   final String id;
   final String name;
@@ -19,6 +21,7 @@ class BuffaloNode {
   final int generation;
   final int unit;
   final List<BuffaloNode> children;
+  final Map<String, dynamic> data;
 
   /// Convenience getter for displaying the age within a given year.
   int ageAtYear(int year) => year - birthYear;
@@ -35,6 +38,7 @@ class BuffaloNode {
     int? generation,
     int? unit,
     List<BuffaloNode>? children,
+    Map<String, dynamic>? data,
   }) {
     return BuffaloNode(
       id: id ?? this.id,
@@ -44,6 +48,7 @@ class BuffaloNode {
       generation: generation ?? this.generation,
       unit: unit ?? this.unit,
       children: children ?? this.children,
+      data: data ?? this.data,
     );
   }
 }

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pluto_grid/pluto_grid.dart';
-import 'reusable_pluto_grid.dart';
 
 class AssetMarketValueWidget extends StatefulWidget {
   final Map<String, dynamic> treeData;
@@ -25,18 +23,47 @@ class AssetMarketValueWidget extends StatefulWidget {
 }
 
 class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
-  late int _selectedYear;
-  late List<Map<String, dynamic>> _assetMarketValue;
+  Map<String, dynamic> _selectedAsset = {};
+  List<Map<String, dynamic>> _assetMarketValue = [];
 
   @override
   void initState() {
     super.initState();
-    final startYear = widget.treeData['startYear'] ?? DateTime.now().year;
-    final years = widget.treeData['years'] ?? 10;
+    _recalculateValues();
+  }
 
+  @override
+  void didUpdateWidget(AssetMarketValueWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.treeData != oldWidget.treeData ||
+        widget.buffaloDetails != oldWidget.buffaloDetails) {
+      _recalculateValues(keepSelection: true);
+    }
+  }
+
+  void _recalculateValues({bool keepSelection = false}) {
     _assetMarketValue = _calculateAssetMarketValueTimeline();
-    // Match React AssetMarketValue: start from startYear by default
-    _selectedYear = startYear;
+
+    if (keepSelection && _selectedAsset.isNotEmpty) {
+      // Try to find the currently selected asset in the new data
+      final found = _assetMarketValue.firstWhere(
+        (a) =>
+            a['year'] == _selectedAsset['year'] &&
+            a['month'] == _selectedAsset['month'] &&
+            a['isInitial'] == _selectedAsset['isInitial'],
+        orElse: () => {},
+      );
+
+      if (found.isNotEmpty) {
+        _selectedAsset = found;
+        return;
+      }
+    }
+
+    // Default to first item (Initial) or empty
+    _selectedAsset = _assetMarketValue.isNotEmpty
+        ? _assetMarketValue.first
+        : {};
   }
 
   // Get buffalo market value based on age in months
@@ -73,7 +100,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
     final years = widget.treeData['years'] ?? 10;
 
     final categories = <String, int>{
-      '0-6 months (Calves)': 3000, // Changed to match React
+      '0-6 months (Calves)': 3000,
       '6-12 months': 6000,
       '12-18 months': 12000,
       '18-24 months': 25000,
@@ -87,10 +114,12 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
 
     final List<Map<String, dynamic>> result = [];
 
-    for (int i = 0; i <= years; i++) {
-      final year = startYear + i;
-
-      // init age categories
+    // Helper to calculate for a specific point in time
+    Map<String, dynamic> calculateForPoint(
+      int year,
+      int month, {
+      bool onlyGen0 = false,
+    }) {
       final Map<String, Map<String, num>> ageCategories = {
         for (final entry in categories.entries)
           entry.key: {'count': 0, 'value': 0},
@@ -100,11 +129,14 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
       int motherBuffaloes = 0;
 
       widget.buffaloDetails.forEach((_, buffalo) {
-        final ageInMonths = widget.calculateAgeInMonths(
-          buffalo,
-          year,
-          11,
-        ); // December valuation
+        // Timeline filtering checks
+        if (onlyGen0 && (buffalo['generation'] as int? ?? 0) > 0) return;
+        if (year < (buffalo['birthYear'] as int)) return;
+        // If same year and month is strictly before birthMonth (if we tracked strict dates)
+        // But for Jan (month 0), if birthMonth is 0, age is 0.
+        // The 'onlyGen0' flag handles the Initial State strictness.
+
+        final ageInMonths = widget.calculateAgeInMonths(buffalo, year, month);
         final category = getAgeCategory(ageInMonths);
 
         final key = ageCategories.containsKey(category)
@@ -131,20 +163,39 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
         (sum, v) => sum + (v['value'] as num),
       );
 
-      result.add({
+      return {
         'year': year,
+        'month': month,
+        'label': onlyGen0
+            ? 'Initial (Jan 1, $year)'
+            : '$year (Year ${year - startYear + 1})',
+        'isInitial': onlyGen0,
         'totalBuffaloes': totalBuffaloes,
         'motherBuffaloes': motherBuffaloes,
         'totalAssetValue': totalAssetValue,
         'ageCategories': ageCategories,
-      });
+      };
+    }
+
+    // 1. Add Initial State (Jan 1st of Start Year) - Only Parents (Gen 0)
+    result.add(calculateForPoint(startYear, 0, onlyGen0: true));
+
+    // 2. Add Yearly States (Dec 31st of each year)
+    // Start from i=1 to avoid duplicate "2026" (Initial vs End of Year 1)
+    // Use i < years to stay within the 10-year simulation bounds (e.g. up to 2035, not 2036)
+    for (int i = 1; i < years; i++) {
+      result.add(calculateForPoint(startYear + i, 11));
     }
 
     return result;
   }
 
   // Calculate detailed asset value for selected year (like React's calculateDetailedAssetValueForYear)
-  Map<String, dynamic> _calculateDetailedAssetValueForYear(int year) {
+  Map<String, dynamic> _calculateDetailedAssetValueForYear(
+    int year, {
+    int month = 11,
+    bool onlyGen0 = false,
+  }) {
     final ageGroups = {
       '0-6 months (Calves)': {'count': 0, 'value': 0, 'unitValue': 3000},
       '6-12 months': {'count': 0, 'value': 0, 'unitValue': 6000},
@@ -158,7 +209,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
       '60+ months (Mother Buffalo)': {
         'count': 0,
         'value': 0,
-        'unitValue': 175000
+        'unitValue': 175000,
       },
     };
 
@@ -166,8 +217,9 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
     int totalCount = 0;
 
     widget.buffaloDetails.forEach((_, buffalo) {
+      if (onlyGen0 && (buffalo['generation'] as int? ?? 0) > 0) return;
       if (year >= (buffalo['birthYear'] as int)) {
-        final ageInMonths = widget.calculateAgeInMonths(buffalo, year, 11);
+        final ageInMonths = widget.calculateAgeInMonths(buffalo, year, month);
         final value = getBuffaloValueByAge(ageInMonths);
 
         if (ageInMonths >= 60) {
@@ -175,7 +227,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               (ageGroups['60+ months (Mother Buffalo)']!['count'] as int) + 1;
           ageGroups['60+ months (Mother Buffalo)']!['value'] =
               (ageGroups['60+ months (Mother Buffalo)']!['value'] as int) +
-                  value;
+              value;
         } else if (ageInMonths >= 48) {
           ageGroups['48-60 months']!['count'] =
               (ageGroups['48-60 months']!['count'] as int) + 1;
@@ -237,1045 +289,633 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Basic Data Checks
     final totalBuffaloes = widget.buffaloDetails.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_assetMarketValue.isEmpty || totalBuffaloes == 0) {
       return Padding(
         padding: const EdgeInsets.all(24.0),
         child: Center(
-          child: Text(
-            'No buffalo data available for asset valuation.',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          child: Column(
+            children: [
+              Icon(Icons.query_stats, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No buffalo data available for asset valuation.',
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    final selectedAsset = _assetMarketValue.firstWhere(
-      (a) => a['year'] == _selectedYear,
-      orElse: () => _assetMarketValue.last,
-    );
+    // Determine Selected Data using State
+    final selectedAsset = _selectedAsset.isNotEmpty
+        ? _selectedAsset
+        : (_assetMarketValue.firstOrNull ?? {});
 
-    final totalAssetValue =
-        (selectedAsset['totalAssetValue'] as num?)?.toDouble() ?? 0.0;
-    final selectedAgeCategories =
-        (selectedAsset['ageCategories'] as Map<String, Map<String, num>>);
-    final detailedValue = _calculateDetailedAssetValueForYear(_selectedYear);
+    // Calculate Detail Data for Selected Year
+    final selectedYear = selectedAsset['year'] as int? ?? 1;
+    final detailedValue = _calculateDetailedAssetValueForYear(
+      selectedYear,
+      month: selectedAsset['month'] as int? ?? 11,
+      onlyGen0: selectedAsset['isInitial'] as bool? ?? false,
+    );
     final detailedAgeGroups =
         detailedValue['ageGroups'] as Map<String, Map<String, dynamic>>;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
-    // Calculate total buffaloes for selected year
-    int totalSelectedYearBuffaloes = 0;
-    selectedAgeCategories.forEach((key, value) {
-      totalSelectedYearBuffaloes += (value['count'] as num).toInt();
-    });
-
-    // Get count for a category from asset data (matching React's getCategoryCount)
-    int getCategoryCount(String categoryKey) {
-      // Try exact key first
-      if (selectedAgeCategories.containsKey(categoryKey)) {
-        return (selectedAgeCategories[categoryKey]!['count'] as num).toInt();
-      }
-
-      // Try without parentheses suffixes
-      final keyWithoutParentheses = categoryKey
-          .replaceAll(' (Calves)', '')
-          .replaceAll(' (Mother Buffalo)', '');
-      if (selectedAgeCategories.containsKey(keyWithoutParentheses)) {
-        return (selectedAgeCategories[keyWithoutParentheses]!['count'] as num)
-            .toInt();
-      }
-
-      // Fallbacks for plain forms like '0-6 months' or '60+ months'
-      if (categoryKey.contains('0-6')) {
-        const plainKey = '0-6 months';
-        if (selectedAgeCategories.containsKey(plainKey)) {
-          return (selectedAgeCategories[plainKey]!['count'] as num).toInt();
-        }
-      }
-      if (categoryKey.contains('60+')) {
-        const plainKey = '60+ months';
-        if (selectedAgeCategories.containsKey(plainKey)) {
-          return (selectedAgeCategories[plainKey]!['count'] as num).toInt();
-        }
-      }
-
-      return 0;
-    }
-
-    // Get value for a category from asset data (matching React's getCategoryValue)
-    double getCategoryValue(String categoryKey) {
-      // Try exact key first
-      if (selectedAgeCategories.containsKey(categoryKey)) {
-        return (selectedAgeCategories[categoryKey]!['value'] as num).toDouble();
-      }
-
-      // Try without parentheses suffixes
-      final keyWithoutParentheses = categoryKey
-          .replaceAll(' (Calves)', '')
-          .replaceAll(' (Mother Buffalo)', '');
-      if (selectedAgeCategories.containsKey(keyWithoutParentheses)) {
-        return (selectedAgeCategories[keyWithoutParentheses]!['value'] as num)
-            .toDouble();
-      }
-
-      // Fallbacks for plain forms like '0-6 months' or '60+ months'
-      if (categoryKey.contains('0-6')) {
-        const plainKey = '0-6 months';
-        if (selectedAgeCategories.containsKey(plainKey)) {
-          return (selectedAgeCategories[plainKey]!['value'] as num).toDouble();
-        }
-      }
-      if (categoryKey.contains('60+')) {
-        const plainKey = '60+ months';
-        if (selectedAgeCategories.containsKey(plainKey)) {
-          return (selectedAgeCategories[plainKey]!['value'] as num).toDouble();
-        }
-      }
-
-      return 0;
-    }
-
-    final startYear = widget.treeData['startYear'] ?? DateTime.now().year;
-    final endYear = startYear + (widget.treeData['years'] ?? 10) - 1;
-
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+    return Container(
+      color: isDark
+          ? const Color(0xFF121212)
+          : const Color(0xFFF5F7FA), // Premium Background
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Combined Year Selection and Summary (matching React)
-            Center(
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 32),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[300]!),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                      ),
-                    ],
+            // 1. Year-wise Overview Table (The "All Detailed" Timeline)
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Year Selection
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                           Text(
-                            'Select Year for Valuation:',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: DropdownButton<int>(
-                              isExpanded: true,
-                              value: _selectedYear,
-                              items: _assetMarketValue
-                                  .map(
-                                    (asset) => DropdownMenuItem<int>(
-                                      value: asset['year'] as int,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Text(
-                                          '${asset['year']} (Year ${(asset['year'] as int) - (widget.treeData['startYear'] ?? 0) + 1})',
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() => _selectedYear = value);
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Total Value Display (matching React gradient)
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.blue[600]!, Colors.indigo[700]!],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue[800]!.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Total Asset Value',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[100],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              widget.formatCurrency(totalAssetValue),
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$totalSelectedYearBuffaloes buffaloes'
-                              '${getCategoryCount('60+ months (Mother Buffalo)') > 0 ? ' · ${getCategoryCount('60+ months (Mother Buffalo)')} mothers' : ''}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue[200],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                ],
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
                 ),
               ),
-            ),
-
-            // Age-Based Valuation Breakdown Table (matching React)
-            Container(
-              margin: const EdgeInsets.only(bottom: 32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.all(20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                         Text(
-                          'Age-Based Valuation Breakdown',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
+                  Row(
+                    children: [
+                      Icon(Icons.timeline, color: Colors.blue[600]),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Asset Projection Timeline',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.grey[900],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Year $_selectedYear',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  ReusablePlutoGrid(
-                    gridId: 'asset_detailed_breakdown',
-                    height: 400,
-                    rowHeight: 52,
-                    columns: [
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Age Group',
-                        field: 'ageGroup',
-                        width: 200,
-                        titleTextAlign: PlutoColumnTextAlign.left,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Unit Value',
-                        field: 'unitValue',
-                        width: 120,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Count',
-                        field: 'count',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Total Value',
-                        field: 'totalValue',
-                        width: 140,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '% of Total',
-                        field: 'percentage',
-                        width: 120,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                    ],
-                    rows: [
-                      ...detailedAgeGroups.entries
-                          .where((entry) => (entry.value['count'] as int) > 0)
-                          .map((entry) {
-                        final ageGroup = entry.key;
-                        final data = entry.value;
-                        final count = data['count'] as int;
-                        final value = data['value'] as int;
-                        final totalValue = detailedValue['totalValue'] as double;
-                        final percentage = totalValue > 0
-                            ? (value / totalValue) * 100
-                            : 0.0;
-
-                        return PlutoRow(
-                          cells: {
-                            'ageGroup': PlutoCell(value: ageGroup),
-                            'unitValue': PlutoCell(
-                              value: widget.formatCurrency(
-                                (data['unitValue'] as int).toDouble(),
-                              ),
-                            ),
-                            'count': PlutoCell(value: count.toString()),
-                            'totalValue': PlutoCell(
-                              value: widget.formatCurrency(value.toDouble()),
-                            ),
-                            'percentage': PlutoCell(
-                              value: '${percentage.toStringAsFixed(1)}%',
-                            ),
-                          },
-                        );
-                      }),
-                      // Footer row
-                      PlutoRow(
-                        cells: {
-                          'ageGroup': PlutoCell(value: 'Total'),
-                          'unitValue': PlutoCell(value: '-'),
-                          'count': PlutoCell(
-                            value: totalSelectedYearBuffaloes.toString(),
-                          ),
-                          'totalValue': PlutoCell(
-                            value: widget.formatCurrency(totalAssetValue),
-                          ),
-                          'percentage': PlutoCell(value: '100%'),
-                        },
-                      ),
-                    ],
+                  const SizedBox(height: 20),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return _buildYearlyOverviewTable(isDark, constraints);
+                    },
                   ),
                 ],
               ),
             ),
 
-            // Compact Age-Based Asset Breakdown (Second Table)
+            const SizedBox(height: 32),
+
+            // 2. Detailed Breakdown for Selected Year
             Container(
-              margin: const EdgeInsets.only(bottom: 32),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!),
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                ),
               ),
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Age-Based Asset Breakdown - $_selectedYear',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            // color: Colors.grey[800],
-                          ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.blue[600]!, Colors.indigo[700]!],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            widget.formatCurrency(totalAssetValue),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ReusablePlutoGrid(
-                    gridId: 'asset_compact_breakdown',
-                    height: 420,
-                    rowHeight: 52,
-                    columns: [
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Age Category',
-                        field: 'ageCategory',
-                        width: 180,
-                        titleTextAlign: PlutoColumnTextAlign.left,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Unit Value',
-                        field: 'unitValue',
-                        width: 120,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Count',
-                        field: 'count',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Total Value',
-                        field: 'totalValue',
-                        width: 140,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '% of Total',
-                        field: 'percentage',
-                        width: 120,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                    ],
-                    rows: [
-                      ...[
-                        {'category': '0-6 months (Calves)', 'unitValue': 3000},
-                        {'category': '6-12 months', 'unitValue': 6000},
-                        {'category': '12-18 months', 'unitValue': 12000},
-                        {'category': '18-24 months', 'unitValue': 25000},
-                        {'category': '24-30 months', 'unitValue': 35000},
-                        {'category': '30-36 months', 'unitValue': 50000},
-                        {'category': '36-40 months', 'unitValue': 50000},
-                        {'category': '40-48 months', 'unitValue': 100000},
-                        {'category': '48-60 months', 'unitValue': 150000},
-                        {
-                          'category': '60+ months (Mother Buffalo)',
-                          'unitValue': 175000,
-                        },
-                      ].map((item) {
-                        final catKey = item['category'] as String;
-                        final count = getCategoryCount(catKey);
-                        final value = getCategoryValue(catKey);
-                        final percentage = totalAssetValue > 0
-                            ? (value / totalAssetValue) * 100
-                            : 0.0;
-
-                        return PlutoRow(
-                          cells: {
-                            'ageCategory': PlutoCell(value: catKey),
-                            'unitValue': PlutoCell(
-                              value: widget.formatCurrency(
-                                (item['unitValue'] as num).toDouble(),
-                              ),
-                            ),
-                            'count': PlutoCell(value: count.toString()),
-                            'totalValue': PlutoCell(
-                              value: widget.formatCurrency(value),
-                            ),
-                            'percentage': PlutoCell(
-                              value: '${percentage.toStringAsFixed(1)}%',
-                            ),
-                          },
-                        );
-                      }),
-                      // Footer row
-                      PlutoRow(
-                        cells: {
-                          'ageCategory': PlutoCell(value: 'Total'),
-                          'unitValue': PlutoCell(value: '-'),
-                          'count': PlutoCell(
-                            value: totalSelectedYearBuffaloes.toString(),
-                          ),
-                          'totalValue': PlutoCell(
-                            value: widget.formatCurrency(totalAssetValue),
-                          ),
-                          'percentage': PlutoCell(value: '100%'),
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Year-wise Age Category Distribution (Years 1-10)
-            Container(
-              margin: const EdgeInsets.only(bottom: 32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Year-wise Age Category Distribution (Years 1-10)',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            // color: Colors.grey[800],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  ReusablePlutoGrid(
-                    gridId: 'asset_year_wise_distribution',
-                    height: 400,
-                    rowHeight: 48,
-                    columns: [
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Year',
-                        field: 'year',
-                        width: 140,
-                        titleTextAlign: PlutoColumnTextAlign.left,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Total Buffaloes',
-                        field: 'totalBuffaloes',
-                        width: 120,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '0-6 months',
-                        field: 'm0_6',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '6-12 months',
-                        field: 'm6_12',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '12-18 months',
-                        field: 'm12_18',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '18-24 months',
-                        field: 'm18_24',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '24-30 months',
-                        field: 'm24_30',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '30-36 months',
-                        field: 'm30_36',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '36-40 months',
-                        field: 'm36_40',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '40-48 months',
-                        field: 'm40_48',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '48-60 months',
-                        field: 'm48_60',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: '60+ months',
-                        field: 'm60plus',
-                        width: 90,
-                        titleTextAlign: PlutoColumnTextAlign.center,
-                      ),
-                      PlutoColumnBuilder.textColumn(
-                        title: 'Total Value',
-                        field: 'totalValue',
-                        width: 140,
-                        titleTextAlign: PlutoColumnTextAlign.right,
-                      ),
-                    ],
-                    rows: _assetMarketValue
-                        .take(10)
-                        .toList()
-                        .asMap()
-                        .entries
-                        .map((entry) {
-                      final index = entry.key;
-                      final asset = entry.value;
-                      final ageCats = asset['ageCategories']
-                          as Map<String, Map<String, num>>;
-
-                      int getCount(String key) {
-                        if (ageCats.containsKey(key)) {
-                          return (ageCats[key]!['count'] as num).toInt();
-                        }
-                        // Try without parentheses
-                        final keyWithoutParentheses = key
-                            .replaceAll(' (Calves)', '')
-                            .replaceAll(' (Mother Buffalo)', '');
-                        if (ageCats.containsKey(keyWithoutParentheses)) {
-                          return (ageCats[keyWithoutParentheses]!['count']
-                                  as num)
-                              .toInt();
-                        }
-                        return 0;
-                      }
-
-                      return PlutoRow(
-                        cells: {
-                          'year': PlutoCell(
-                            value: 'Year ${index + 1} (${asset['year']})',
-                          ),
-                          'totalBuffaloes': PlutoCell(
-                            value: (asset['totalBuffaloes'] as num)
-                                .toInt()
-                                .toString(),
-                          ),
-                          'm0_6': PlutoCell(
-                            value: getCount('0-6 months (Calves)').toString(),
-                          ),
-                          'm6_12': PlutoCell(
-                            value: getCount('6-12 months').toString(),
-                          ),
-                          'm12_18': PlutoCell(
-                            value: getCount('12-18 months').toString(),
-                          ),
-                          'm18_24': PlutoCell(
-                            value: getCount('18-24 months').toString(),
-                          ),
-                          'm24_30': PlutoCell(
-                            value: getCount('24-30 months').toString(),
-                          ),
-                          'm30_36': PlutoCell(
-                            value: getCount('30-36 months').toString(),
-                          ),
-                          'm36_40': PlutoCell(
-                            value: getCount('36-40 months').toString(),
-                          ),
-                          'm40_48': PlutoCell(
-                            value: getCount('40-48 months').toString(),
-                          ),
-                          'm48_60': PlutoCell(
-                            value: getCount('48-60 months').toString(),
-                          ),
-                          'm60plus': PlutoCell(
-                            value: getCount('60+ months (Mother Buffalo)')
-                                .toString(),
-                          ),
-                          'totalValue': PlutoCell(
-                            value: widget.formatCurrency(
-                              (asset['totalAssetValue'] as num).toDouble(),
-                            ),
-                          ),
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Shows the distribution of buffaloes across different age categories for each year (1-10)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Initial vs Final Asset Value Cards (matching React layout)
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue[50]!, Colors.indigo[50]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue[300]!),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue[100]!.withOpacity(0.5),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Text(
-                          widget.formatCurrency(
-                            (_assetMarketValue.first['totalAssetValue'] as num)
-                                .toDouble(),
-                          ),
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Initial Asset Value ($startYear)',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue[800],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '${_assetMarketValue.first['totalBuffaloes']} buffaloes\n'
-                          '${((_assetMarketValue.first['ageCategories'] as Map<String, Map<String, num>>)['60+ months (Mother Buffalo)']?['count'] ?? 0).toInt()} mother buffaloes (60+ months)\n'
-                          '${((_assetMarketValue.first['ageCategories'] as Map<String, Map<String, num>>)['0-6 months (Calves)']?['count'] ?? 0).toInt()} newborn calves',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(left: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.indigo[600]!, Colors.blue[700]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.indigo[800]!.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Text(
-                          widget.formatCurrency(
-                            (_assetMarketValue.last['totalAssetValue'] as num)
-                                .toDouble(),
-                          ),
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Final Asset Value ($endYear)',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '${_assetMarketValue.last['totalBuffaloes']} buffaloes\n'
-                          '${((_assetMarketValue.last['ageCategories'] as Map<String, Map<String, num>>)['60+ months (Mother Buffalo)']?['count'] ?? 0).toInt()} mother buffaloes (60+ months)\n'
-                          'Multiple generations with age-based valuation',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Price Schedule Grid
-            Container(
-              margin: const EdgeInsets.only(bottom: 32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.grey[50]!, Colors.grey[100]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Text(
-                    'Age-Based Price Schedule',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 2.4,
-                    children: [
-                      {
-                        'age': '0-6 months',
-                        'price': '₹3,000',
-                        'gradient': 'from-blue-50 to-blue-100',
-                        'desc': 'New born',
-                      },
-                      {
-                        'age': '6-12 months',
-                        'price': '₹6,000',
-                        'gradient': 'from-blue-100 to-blue-200',
-                        'desc': 'Growing',
-                      },
-                      {
-                        'age': '12-18 months',
-                        'price': '₹12,000',
-                        'gradient': 'from-teal-50 to-teal-100',
-                        'desc': 'Growing',
-                      },
-                      {
-                        'age': '18-24 months',
-                        'price': '₹25,000',
-                        'gradient': 'from-teal-100 to-teal-200',
-                        'desc': 'Growing',
-                      },
-                      {
-                        'age': '24-30 months',
-                        'price': '₹35,000',
-                        'gradient': 'from-emerald-50 to-emerald-100',
-                        'desc': 'Growing',
-                      },
-                      {
-                        'age': '30-36 months',
-                        'price': '₹50,000',
-                        'gradient': 'from-emerald-100 to-emerald-200',
-                        'desc': 'Growing',
-                      },
-                      {
-                        'age': '36-40 months',
-                        'price': '₹50,000',
-                        'gradient': 'from-amber-50 to-amber-100',
-                        'desc': 'Transition',
-                      },
-                      {
-                        'age': '40-48 months',
-                        'price': '₹1,00,000',
-                        'gradient': 'from-amber-100 to-amber-200',
-                        'desc': '4+ years',
-                      },
-                      {
-                        'age': '48-60 months',
-                        'price': '₹1,50,000',
-                        'gradient': 'from-orange-50 to-orange-100',
-                        'desc': '5th year',
-                      },
-                      {
-                        'age': '60+ months',
-                        'price': '₹1,75,000',
-                        'gradient': 'from-red-50 to-red-100',
-                        'desc': 'Mother buffalo',
-                      },
-                    ].map((item) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              _getColorFromString(
-                                  item['gradient'] as String, true),
-                              _getColorFromString(
-                                  item['gradient'] as String, false),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Row(
                           children: [
-                            Text(
-                              item['age'] as String,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                // color: Colors.grey[800],
-                              ),
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              color: Colors.purple[600],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(width: 12),
                             Text(
-                              item['price'] as String,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                // color: Colors.grey[900],
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              item['desc'] as String,
+                              'Detailed Breakdown',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
+                                fontSize: isMobile ? 16 : 20,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.grey[900],
                               ),
                             ),
                           ],
                         ),
-                      );
-                    }).toList(),
+                        // Year Selector embedded in header
+                        _buildCompactYearSelector(isDark, isMobile),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 800;
+                      // Filter & Sort Rows
+                      final tableRows = detailedAgeGroups.entries
+                          .where((entry) => (entry.value['count'] as int) > 0)
+                          .toList();
+
+                      if (isMobile) {
+                        return _buildMobileAssetList(
+                          tableRows,
+                          detailedValue['totalValue'] as double,
+                          isDark,
+                        );
+                      } else {
+                        return _buildDesktopAssetTable(
+                          tableRows,
+                          detailedValue['totalValue'] as double,
+                          isDark,
+                        );
+                      }
+                    },
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  // Helper function to get color from gradient string
-  Color _getColorFromString(String gradient, bool isFrom) {
-    final parts = gradient.replaceAll('from-', '').replaceAll('to-', '').split(' ');
-    final colorName = isFrom ? parts[0] : parts[1];
-    
-    switch (colorName) {
-      case 'blue-50':
-        return Colors.blue[50]!;
-      case 'blue-100':
-        return Colors.blue[100]!;
-      case 'blue-200':
-        return Colors.blue[200]!;
-      case 'teal-50':
-        return Colors.teal[50]!;
-      case 'teal-100':
-        return Colors.teal[100]!;
-      case 'teal-200':
-        return Colors.teal[200]!;
-      case 'emerald-50':
-        return Colors.green[50]!;
-      case 'emerald-100':
-        return Colors.green[100]!;
-      case 'emerald-200':
-        return Colors.green[200]!;
-      case 'amber-50':
-        return Colors.amber[50]!;
-      case 'amber-100':
-        return Colors.amber[100]!;
-      case 'amber-200':
-        return Colors.amber[200]!;
-      case 'orange-50':
-        return Colors.orange[50]!;
-      case 'orange-100':
-        return Colors.orange[100]!;
-      case 'red-50':
-        return Colors.red[50]!;
-      case 'red-100':
-        return Colors.red[100]!;
-      default:
-        return Colors.grey[50]!;
-    }
+  // --- Helper Widgets ---
+
+  Widget _buildCompactYearSelector(bool isDark, bool isMobile) {
+    return Container(
+      height: 35,
+      width: isMobile ? 140 : null,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[800] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Map<String, dynamic>>(
+          dropdownColor: isDark ? Colors.grey[850] : Colors.white,
+          value: _selectedAsset.isNotEmpty
+              ? _selectedAsset
+              : (_assetMarketValue.firstOrNull),
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+          ),
+          style: TextStyle(
+            fontSize: isMobile ? 12 : 14,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : Colors.grey[900],
+          ),
+          items: _assetMarketValue
+              .map(
+                (asset) => DropdownMenuItem<Map<String, dynamic>>(
+                  value: asset,
+                  child: Text(asset['label'] as String),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedAsset = value;
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildYearlyOverviewTable(bool isDark, BoxConstraints constraints) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+        child: DataTable(
+          headingRowColor: WidgetStateProperty.all(
+            isDark ? Colors.grey[850] : const Color(0xFFF9FAFB),
+          ),
+          dataRowMinHeight: 52,
+          dataRowMaxHeight: 52,
+          columnSpacing: 32,
+          columns: [
+            DataColumn(
+              label: Text(
+                'Year',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Total Herd',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+              numeric: true,
+            ),
+            DataColumn(
+              label: Text(
+                'Calves (0-6m)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+              numeric: true,
+            ),
+            DataColumn(
+              label: Text(
+                'Mothers (60+m)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+              numeric: true,
+            ),
+            DataColumn(
+              label: Text(
+                'Total Asset Value',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+              numeric: true,
+            ),
+          ],
+          rows: _assetMarketValue.map((asset) {
+            final ageCats =
+                asset['ageCategories'] as Map<String, Map<String, num>>;
+
+            int getCount(String key) {
+              if (ageCats.containsKey(key)) {
+                return (ageCats[key]!['count'] as num).toInt();
+              }
+              // Try fallback if formatting differs
+              final cleanKey = key
+                  .replaceAll(' (Calves)', '')
+                  .replaceAll(' (Mother Buffalo)', '');
+              if (ageCats.containsKey(cleanKey)) {
+                return (ageCats[cleanKey]!['count'] as num).toInt();
+              }
+              return 0;
+            }
+
+            final calfCount = getCount('0-6 months (Calves)');
+            final motherCount = getCount('60+ months (Mother Buffalo)');
+            final totalVal =
+                (asset['totalAssetValue'] as num?)?.toDouble() ?? 0.0;
+            final yearLabel = asset['label'] as String; // e.g., "Year 1"
+
+            return DataRow(
+              cells: [
+                DataCell(
+                  Text(
+                    yearLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.grey[900],
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.blue[900]!.withValues(alpha: 0.2)
+                          : Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${asset['totalBuffaloes']}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.blue[200] : Colors.blue[800],
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    '$calfCount',
+                    style: TextStyle(
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    '$motherCount',
+                    style: TextStyle(
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    widget.formatCurrency(totalVal),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.green[300] : Colors.green[700],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopAssetTable(
+    List<MapEntry<String, Map<String, dynamic>>> rows,
+    double totalValue,
+    bool isDark,
+  ) {
+    return DataTable(
+      headingRowColor: WidgetStateProperty.all(
+        isDark ? Colors.grey[850] : Colors.grey[50],
+      ),
+      columnSpacing: 24,
+      horizontalMargin: 24,
+      columns: [
+        DataColumn(
+          label: Text(
+            'Age Category',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            'Unit Value',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          numeric: true,
+        ),
+        DataColumn(
+          label: Text(
+            'Count',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          numeric: true,
+        ),
+        DataColumn(
+          label: Text(
+            'Total Value',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          numeric: true,
+        ),
+        DataColumn(
+          label: Text(
+            '% of Portfolio',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          numeric: true,
+        ),
+      ],
+      rows: rows.map((entry) {
+        final data = entry.value;
+        final val = data['value'] as int;
+        final pct = totalValue > 0 ? (val / totalValue * 100) : 0.0;
+
+        return DataRow(
+          cells: [
+            DataCell(
+              Text(
+                entry.key,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.grey[800],
+                ),
+              ),
+            ),
+            DataCell(
+              Text(
+                widget.formatCurrency((data['unitValue'] as int).toDouble()),
+                style: TextStyle(
+                  color: isDark ? Colors.grey[300] : Colors.grey[700],
+                ),
+              ),
+            ),
+            DataCell(
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.blue[900]!.withValues(alpha: 0.3)
+                      : Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${data['count']}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.blue[200] : Colors.blue[800],
+                  ),
+                ),
+              ),
+            ),
+            DataCell(
+              Text(
+                widget.formatCurrency(val.toDouble()),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.green[300] : Colors.green[700],
+                ),
+              ),
+            ),
+            DataCell(
+              Text(
+                '${pct.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMobileAssetList(
+    List<MapEntry<String, Map<String, dynamic>>> rows,
+    double totalValue,
+    bool isDark,
+  ) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: rows.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final entry = rows[index];
+        final data = entry.value;
+        final val = data['value'] as int;
+        final pct = totalValue > 0 ? (val / totalValue * 100) : 0.0;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[850] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.key,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.blue[900]!.withValues(alpha: 0.5)
+                          : Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${data['count']} Units',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.blue[200] : Colors.blue[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Unit Value',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark ? Colors.grey[500] : Colors.grey[500],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.formatCurrency(
+                          (data['unitValue'] as int).toDouble(),
+                        ),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Total Value',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark ? Colors.grey[500] : Colors.grey[500],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.formatCurrency(val.toDouble()),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.green[400] : Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: pct / 100,
+                backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'models.dart';
 import '../../services/simulation_service.dart';
 import 'header_controls.dart';
 import 'tree_visualization.dart';
@@ -26,7 +25,11 @@ class _BuffaloFamilyTreeState extends State<BuffaloFamilyTree> {
     setState(() => loading = true);
     await Future.delayed(const Duration(milliseconds: 250));
     final result = SimulationService.runSimulation(
-        units: units, years: years, startYear: startYear, startMonth: startMonth);
+      units: units,
+      years: years,
+      startYear: startYear,
+      startMonth: startMonth,
+    );
     setState(() {
       treeData = result['treeData'] as Map<String, dynamic>;
       revenueData = result['revenueData'] as Map<String, dynamic>;
@@ -64,10 +67,23 @@ class _BuffaloFamilyTreeState extends State<BuffaloFamilyTree> {
               treeData: treeData,
               onPriceEstimationPressed: () {
                 if (revenueData == null || treeData == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please run a simulation to generate price estimates.')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Please run a simulation to generate price estimates.',
+                      ),
+                    ),
+                  );
                   return;
                 }
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) => CostEstimationTable(treeData: treeData!, revenueData: revenueData!)));
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => CostEstimationTable(
+                      treeData: treeData!,
+                      revenueData: revenueData!,
+                    ),
+                  ),
+                );
               },
               resetSimulation: resetSimulation,
             ),
@@ -77,11 +93,24 @@ class _BuffaloFamilyTreeState extends State<BuffaloFamilyTree> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.grass, size: 80, color: Colors.indigo),
+                          const Icon(
+                            Icons.grass,
+                            size: 80,
+                            color: Colors.indigo,
+                          ),
                           const SizedBox(height: 16),
-                          const Text('Buffalo Family Tree Simulator', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                          const Text(
+                            'Buffalo Family Tree Simulator',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 12),
-                          ElevatedButton(onPressed: runSimulation, child: const Text('Start Your First Simulation'))
+                          ElevatedButton(
+                            onPressed: runSimulation,
+                            child: const Text('Start Your First Simulation'),
+                          ),
                         ],
                       ),
                     )

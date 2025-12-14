@@ -40,12 +40,16 @@ dependencies:
   fl_chart: ^0.60.0
   csv: ^5.0.0
   path_provider: ^2.0.14
-  share_plus: ^6.3.0
+  share_plus: ^10.0.0
   syncfusion_flutter_charts: 
   pluto_grid: 
   file_saver:
   universal_html: 
   data_table_2: 
+  flutter_riverpod: ^3.0.3
+  excel: ^4.0.6
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +61,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/app_icon.jpg"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/app_icon.jpg"
+    background_color: "#hex_code"
+    theme_color: "#hex_code"
+  windows:
+    generate: true
+    image_path: "assets/app_icon.jpg"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/app_icon.jpg"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -1,565 +1,971 @@
-// import 'package:flutter/material.dart';
-// import 'components/buffalo_family_tree/buffalo_family_tree.dart';
-
-// void main() {
-//   runApp(const BuffaloVisualizerSample());
-// }
-
-// class BuffaloVisualizerSample extends StatelessWidget {
-//   const BuffaloVisualizerSample({Key? key}) : super(key: key);
-
-//   @override
-//   Widget build(BuildContext context) {
-//     // Sample data used earlier; BuffaloFamilyTree now generates data via the simulation service
-
-//     return MaterialApp(
-//       title: 'Buffalo Visualizer - Flutter (Sample)',
-//       theme: ThemeData(
-//         scaffoldBackgroundColor: const Color(0xFFF0F4FF),
-//         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-//       ),
-//       debugShowCheckedModeBanner: false,
-//       home: const BuffaloFamilyTree(),
-//     );
-//   }
-// }
-
-import 'package:buffalo_visualizer/buffalo_tree/view/buffalo_tree_widget.dart';
 import 'package:buffalo_visualizer/buffalo_tree/models/tree_theme.dart';
+import 'package:buffalo_visualizer/buffalo_tree/view/buffalo_tree_widget.dart';
 import 'package:buffalo_visualizer/components/buffalo_family_tree/cost_estimation_table.dart';
+import 'package:buffalo_visualizer/providers/simulation_provider.dart';
+import 'package:buffalo_visualizer/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  // // Register iframe factory - COMMENTED OUT: Using Flutter buffalo tree UI instead
-  // ui.platformViewRegistry.registerViewFactory(
-  //   'react-iframe',
-  //   (int viewId) {
-  //     final IFrameElement = html.IFrameElement()
-  //       ..id = 'react-iframe'
-  //       ..src = 'https://buffalovisualizer.vercel.app/'
-  //       ..style.border = 'none'
-  //       ..style.width = '100%'
-  //       ..style.height = '100%';
-  //     return IFrameElement;
-  //   },
-  // );
-
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp(
-      title: 'Buffalo Visualizer - Flutter Controller',
+      title: 'Buffalo Visualizer',
       debugShowCheckedModeBanner: false,
-      home: const Scaffold(
-        body: SafeArea(child: ControllerPage()),
+      themeMode: themeMode,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF0F4FF),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      home: const Scaffold(body: SafeArea(child: ControllerPage())),
     );
   }
 }
 
-class ControllerPage extends StatefulWidget {
+enum ViewMode { tree, estimation }
+
+class ControllerPage extends ConsumerStatefulWidget {
   const ControllerPage({super.key});
 
   @override
-  State<ControllerPage> createState() => _ControllerPageState();
+  ConsumerState<ControllerPage> createState() => _ControllerPageState();
 }
 
-class _ControllerPageState extends State<ControllerPage> {
-  int units = 1;
-  int years = 10;
-  int startYear = 2026;
-  int startMonth = 0; // 0-based
-  Map<String, dynamic>? treeData;
-  Map<String, dynamic>? revenueData;
+class _ControllerPageState extends ConsumerState<ControllerPage> {
+  ViewMode _currentView = ViewMode.tree;
+  bool _isTreeFullscreen = false;
 
-  // Revenue configuration
-  final Map<String, dynamic> revenueConfig = {
-    'landingPeriod': 2,
-    'highRevenuePhase': {'months': 5, 'revenue': 9000},
-    'mediumRevenuePhase': {'months': 3, 'revenue': 6000},
-    'restPeriod': {'months': 4, 'revenue': 0}
-  };
+  // Temporary controllers for text fields to decouple from provider updates while typing
+  late TextEditingController _unitsController;
+  late TextEditingController _yearsController;
 
-  // Calculate monthly revenue for EACH buffalo based on its individual cycle
-  int calculateMonthlyRevenueForBuffalo(
-    int buffaloId,
-    int acquisitionMonth,
-    int currentYear,
-    int currentMonth,
-    int startYearVal,
-  ) {
-    final monthsSinceAcquisition =
-        (currentYear - startYearVal) * 12 + (currentMonth - acquisitionMonth);
-    
-    if (monthsSinceAcquisition < revenueConfig['landingPeriod']) {
-      return 0;
-    }
-    
-    final productionMonths = monthsSinceAcquisition - revenueConfig['landingPeriod'];
-    final cyclePosition = productionMonths % 12;
-    
-    if (cyclePosition < revenueConfig['highRevenuePhase']['months']) {
-      return revenueConfig['highRevenuePhase']['revenue'];
-    } else if (cyclePosition < revenueConfig['highRevenuePhase']['months'] + 
-               revenueConfig['mediumRevenuePhase']['months']) {
-      return revenueConfig['mediumRevenuePhase']['revenue'];
-    } else {
-      return revenueConfig['restPeriod']['revenue'];
-    }
+  @override
+  void initState() {
+    super.initState();
+    final state = ref.read(simulationProvider);
+    _unitsController = TextEditingController(text: state.units.toString());
+    _yearsController = TextEditingController(text: state.years.toString());
   }
 
-  // Calculate annual revenue for ALL mature buffaloes with individual cycles
-  Map<String, dynamic> calculateAnnualRevenueForHerd(
-    List<dynamic> herd,
-    int startYearVal,
-    int startMonthVal,
-    int currentYear,
-  ) {
-    double annualRevenue = 0;
-    
-    final matureBuffaloes = herd.where((buffalo) {
-      final ageInCurrentYear = currentYear - buffalo['birthYear'];
-      return ageInCurrentYear >= 3;
-    }).toList();
-
-    for (final buffalo in matureBuffaloes) {
-      final acquisitionMonth = buffalo['acquisitionMonth'];
-      
-      for (int month = 0; month < 12; month++) {
-        annualRevenue += calculateMonthlyRevenueForBuffalo(
-          buffalo['id'], 
-          acquisitionMonth, 
-          currentYear, 
-          month,
-          startYearVal
-        );
-      }
-    }
-
-    return {
-      'annualRevenue': annualRevenue,
-      'matureBuffaloes': matureBuffaloes.length,
-      'totalBuffaloes': herd.where((buffalo) => buffalo['birthYear'] <= currentYear).length
-    };
-  }
-
-  // Calculate total revenue data based on ACTUAL herd growth with staggered cycles
-  Map<String, dynamic> calculateRevenueData(
-    List<dynamic> herd,
-    int startYearVal,
-    int startMonthVal,
-    int totalYears,
-  ) {
-    final List<Map<String, dynamic>> yearlyData = [];
-    double totalRevenue = 0;
-    double totalMatureBuffaloYears = 0;
-
-    final monthNames = [
-      "January", "February", "March", "April", "May", "June", 
-      "July", "August", "September", "October", "November", "December"
-    ];
-
-    for (int yearOffset = 0; yearOffset < totalYears; yearOffset++) {
-      final currentYear = startYearVal + yearOffset;
-      
-      final annualResult = calculateAnnualRevenueForHerd(
-        herd, startYearVal, startMonthVal, currentYear
-      );
-
-      final annualRevenue = annualResult['annualRevenue'];
-      final matureBuffaloes = annualResult['matureBuffaloes'];
-      final totalBuffaloes = annualResult['totalBuffaloes'];
-
-      totalRevenue += annualRevenue;
-      totalMatureBuffaloYears += matureBuffaloes;
-
-      final monthlyRevenuePerBuffalo = matureBuffaloes > 0 
-          ? annualRevenue / (matureBuffaloes * 12) 
-          : 0;
-
-      yearlyData.add({
-        'year': currentYear,
-        'activeUnits': (totalBuffaloes / 2).ceil(),
-        'monthlyRevenue': monthlyRevenuePerBuffalo,
-        'revenue': annualRevenue,
-        'totalBuffaloes': totalBuffaloes,
-        'producingBuffaloes': matureBuffaloes,
-        'nonProducingBuffaloes': totalBuffaloes - matureBuffaloes,
-        'startMonth': monthNames[startMonthVal],
-        'startYear': startYearVal,
-        'matureBuffaloes': matureBuffaloes
-      });
-    }
-
-    return {
-      'yearlyData': yearlyData,
-      'totalRevenue': totalRevenue,
-      'totalUnits': totalMatureBuffaloYears / totalYears,
-      'averageAnnualRevenue': totalRevenue / totalYears,
-      'revenueConfig': revenueConfig,
-      'totalMatureBuffaloYears': totalMatureBuffaloYears
-    };
-  }
-
-  // Run simulation locally
-  void runLocalSimulation() {
-    setState(() {
-      treeData = null;
-      revenueData = null;
-    });
-
-    // Simulate loading
-    Future.delayed(const Duration(milliseconds: 300), () {
-      final totalYears = years;
-      final List<Map<String, dynamic>> herd = [];
-      int nextId = 1;
-
-      // Create initial buffaloes (2 per unit) with staggered acquisition
-      for (int u = 0; u < units; u++) {
-        // First buffalo - acquired in starting month
-        herd.add({
-          'id': nextId++,
-          'age': 3,
-          'mature': true,
-          'parentId': null,
-          'generation': 0,
-          'birthYear': startYear - 3,
-          'acquisitionMonth': startMonth,
-          'unit': u + 1,
-        });
-
-        // Second buffalo - acquired in July (6 months later)
-        herd.add({
-          'id': nextId++,
-          'age': 3,
-          'mature': true,
-          'parentId': null,
-          'generation': 0,
-          'birthYear': startYear - 3,
-          'acquisitionMonth': (startMonth + 6) % 12,
-          'unit': u + 1,
-        });
-      }
-
-      // Simulate years
-      for (int year = 1; year <= totalYears; year++) {
-        final currentYear = startYear + (year - 1);
-        final matureBuffaloes = herd.where((b) => b['age'] >= 3).toList();
-
-        // Each mature buffalo gives birth to one offspring per year
-        for (final parent in matureBuffaloes) {
-          herd.add({
-            'id': nextId++,
-            'age': 0,
-            'mature': false,
-            'parentId': parent['id'],
-            'birthYear': currentYear,
-            'acquisitionMonth': parent['acquisitionMonth'],
-            'generation': parent['generation'] + 1,
-            'unit': parent['unit'],
-          });
-        }
-
-        // Age all buffaloes
-        for (final b in herd) {
-          b['age']++;
-          if (b['age'] >= 3) b['mature'] = true;
-        }
-      }
-
-      // Calculate revenue data based on ACTUAL herd growth with staggered cycles
-      final calculatedRevenueData = calculateRevenueData(
-        herd, startYear, startMonth, totalYears
-      );
-
-      setState(() {
-        treeData = {
-          'units': units,
-          'years': years,
-          'startYear': startYear,
-          'startMonth': startMonth,
-          'totalBuffaloes': herd.length,
-          'buffaloes': herd,
-          'revenueData': calculatedRevenueData
-        };
-        revenueData = calculatedRevenueData;
-      });
-    });
-  }
-
-  // COMMENTED OUT: Using Flutter buffalo tree UI instead of React iframe
-  // void sendToReact() {
-  //   final iframe = html.document.getElementById('react-iframe') as html.IFrameElement?;
-  //
-  //   if (iframe == null) {
-  //     print('Iframe not found');
-  //     return;
-  //   }
-  //
-  //   if (iframe.contentWindow == null) {
-  //     print('Iframe content window not ready');
-  //     return;
-  //   }
-  //
-  //   print('Sending to React: units=$units, years=$years, startYear=$startYear, startMonth=$startMonth');
-  //   
-  //   // Also run local simulation to generate data for Flutter
-  //   runLocalSimulation();
-  //   
-  //   // Send to React iframe
-  //   iframe.contentWindow!.postMessage({
-  //     "type": "RUN_SIMULATION",
-  //     "payload": {
-  //       "units": units,
-  //       "years": years,
-  //       "startYear": startYear,
-  //       "startMonth": startMonth,
-  //     }
-  //   }, "*");
-  // }
-
-  void sendToReact() {
-    // Now just runs the simulation - used for Run button
-    runLocalSimulation();
+  @override
+  void dispose() {
+    _unitsController.dispose();
+    _yearsController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Listen to simulation state
+    final simState = ref.watch(simulationProvider);
+    final simNotifier = ref.read(simulationProvider.notifier);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          color: Colors.white,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Buffalo Family Tree Simulator',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+        // Header (Hidden in tree fullscreen mode)
+        if (!_isTreeFullscreen)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: isDark ? Colors.grey[900] : Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Units
-                    _buildFieldRow(
-                      label: 'Starting Units',
-                      child: SizedBox(
-                        width: 100,
-                        child: TextFormField(
-                          initialValue: units.toString(),
-                          keyboardType: TextInputType.number,
-                          onChanged: (v) => setState(() => units = int.tryParse(v) ?? units),
-                          decoration: const InputDecoration(border: OutlineInputBorder()),
-                        ),
+                    // Empty container for spacing balance
+                    const SizedBox(width: 48),
+                    Text(
+                      'Buffalo Herd Investments',
+                      style: Theme.of(context).textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    // Theme Toggle
+                    IconButton(
+                      icon: Icon(
+                        isDark ? Icons.light_mode : Icons.dark_mode,
+                        color: isDark ? Colors.yellow : Colors.grey[700],
                       ),
-                    ),
-                    const SizedBox(width: 30),
-        
-                    // Years
-                    _buildFieldRow(
-                      label: 'Simulation Years',
-                      child: SizedBox(
-                        width: 100,
-                        child: TextFormField(
-                          initialValue: years.toString(),
-                          keyboardType: TextInputType.number,
-                          onChanged: (v) => setState(() => years = int.tryParse(v) ?? years),
-                          decoration: const InputDecoration(border: OutlineInputBorder()),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 30),
-
-                    // Start Year
-                    _buildFieldRow(
-                      label: 'Start Year',
-                      child: SizedBox(
-                        width: 120,
-                        child: TextFormField(
-                          initialValue: startYear.toString(),
-                          keyboardType: TextInputType.number,
-                          onChanged: (v) => setState(() => startYear = int.tryParse(v) ?? startYear),
-                          decoration: const InputDecoration(border: OutlineInputBorder()),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 30),
-
-                    // Start Month
-                    _buildFieldRow(
-                      label: 'Start Month',
-                      child: DropdownButton<int>(
-                        value: startMonth,
-                        items: List.generate(12, (i) => DropdownMenuItem(
-                          value: i,
-                          child: Text(_monthName(i)),
-                        )),
-                        onChanged: (v) => setState(() => startMonth = v ?? startMonth),
-                      ),
-                    ),
-                    const SizedBox(width: 30),
-
-                    // Run Button
-                    ElevatedButton.icon(
-                      onPressed: sendToReact,
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('Run'),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Reset Button
-                    OutlinedButton.icon(
                       onPressed: () {
-                        setState(() {
-                          units = 2;
-                          years = 10;
-                          startYear = 2026;
-                          startMonth = 0;
-                          treeData = null;
-                          revenueData = null;
-                        });
+                        ref.read(themeProvider.notifier).toggleTheme();
                       },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reset'),
+                      tooltip: 'Toggle Theme',
                     ),
-                    const SizedBox(width: 40),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    children: [
+                      // View Mode Toggle (Top Row)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.grey[700]!
+                                : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildViewToggle(
+                              icon: Icons.account_tree,
+                              label: 'Tree View',
+                              mode: ViewMode.tree,
+                              isDark: isDark,
+                            ),
+                            Container(
+                              width: 1,
+                              height: 16,
+                              color: isDark
+                                  ? Colors.grey[700]
+                                  : Colors.grey[300],
+                            ),
+                            _buildViewToggle(
+                              icon: Icons.table_chart,
+                              label: 'Revenue Estimation',
+                              mode: ViewMode.estimation,
+                              isDark: isDark,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
-                    // Price Estimation Button (only enabled when simulation data exists)
-                    ElevatedButton.icon(
-                      onPressed: treeData != null && revenueData != null
-                          ? () {
-                            // print(treeData);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => CostEstimationTable(
-                                  treeData: treeData!,
-                                  revenueData: revenueData!,
+                      // Inputs and Buttons (Responsive Layout)
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = constraints.maxWidth < 600;
+
+                          if (isMobile) {
+                            // Mobile: Stack vertically
+                            return Column(
+                              children: [
+                                // First Row: Inputs only
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Units
+                                      _buildFieldRow(
+                                        label: 'Units',
+                                        child: SizedBox(
+                                          width: 50,
+                                          child: TextField(
+                                            controller: _unitsController,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                            keyboardType:
+                                                const TextInputType.numberWithOptions(
+                                                  decimal: true,
+                                                ),
+                                            onSubmitted: (v) {
+                                              simNotifier.updateSettings(
+                                                units: double.tryParse(v),
+                                              );
+                                            },
+                                            decoration: const InputDecoration(
+                                              border: OutlineInputBorder(),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 8,
+                                                  ),
+                                              isDense: true,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+
+                                      // Years
+                                      _buildFieldRow(
+                                        label: 'Years',
+                                        child: SizedBox(
+                                          width: 50,
+                                          child: TextField(
+                                            controller: _yearsController,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            onSubmitted: (v) {
+                                              simNotifier.updateSettings(
+                                                years: int.tryParse(v),
+                                              );
+                                            },
+                                            decoration: const InputDecoration(
+                                              border: OutlineInputBorder(),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 8,
+                                                  ),
+                                              isDense: true,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+
+                                      // Start Date
+                                      _buildFieldRow(
+                                        label: 'Start Date',
+                                        child: InkWell(
+                                          onTap: () async {
+                                            final DateTime? picked =
+                                                await showDatePicker(
+                                                  context: context,
+                                                  initialDate:
+                                                      simState.startDate,
+                                                  firstDate: DateTime(2000),
+                                                  lastDate: DateTime(2100),
+                                                );
+                                            if (picked != null) {
+                                              simNotifier.updateSettings(
+                                                startDate: picked,
+                                              );
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Colors.grey,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_today,
+                                                  size: 14,
+                                                  color: isDark
+                                                      ? Colors.grey[400]
+                                                      : Colors.grey[700],
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  '${simState.startDate.day}/${simState.startDate.month}/${simState.startDate.year}',
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                                const SizedBox(height: 8),
+
+                                // Second Row: Buttons + Stats
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Run Button
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          final unitsText = _unitsController
+                                              .text
+                                              .trim();
+                                          final double? unitsVal =
+                                              double.tryParse(unitsText);
+
+                                          if (unitsVal == null) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Please enter a valid number for units',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          bool isValid = false;
+                                          if (unitsVal == 0.5) {
+                                            isValid = true;
+                                          } else if (unitsVal >= 1 &&
+                                              (unitsVal % 1 == 0)) {
+                                            isValid = true;
+                                          }
+
+                                          if (!isValid) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Invalid Units: Please enter 0.5 or a whole number (1, 2, etc.)',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          simNotifier.updateSettings(
+                                            units: unitsVal,
+                                            years: int.tryParse(
+                                              _yearsController.text,
+                                            ),
+                                          );
+                                          simNotifier.runSimulation();
+                                        },
+                                        icon: const Icon(
+                                          Icons.play_arrow,
+                                          size: 16,
+                                        ),
+                                        label: const Text(
+                                          'Run',
+                                          style: TextStyle(fontSize: 13),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+
+                                      // Reset Button
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          FocusScope.of(context).unfocus();
+                                          simNotifier.reset();
+                                          _unitsController.text = '1';
+                                          _yearsController.text = '10';
+                                        },
+                                        icon: const Icon(
+                                          Icons.refresh,
+                                          size: 16,
+                                        ),
+                                        label: const Text(
+                                          'Reset',
+                                          style: TextStyle(fontSize: 13),
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+
+                                      // Stats
+                                      _buildOverallStats(simState),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          } else {
+                            // Desktop: Horizontal layout
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Units
+                                  _buildFieldRow(
+                                    label: 'Units',
+                                    child: SizedBox(
+                                      width: 50,
+                                      child: TextField(
+                                        controller: _unitsController,
+                                        style: const TextStyle(fontSize: 13),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                        onSubmitted: (v) {
+                                          simNotifier.updateSettings(
+                                            units: double.tryParse(v),
+                                          );
+                                        },
+                                        decoration: const InputDecoration(
+                                          border: OutlineInputBorder(),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 8,
+                                          ),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+
+                                  // Years
+                                  _buildFieldRow(
+                                    label: 'Years',
+                                    child: SizedBox(
+                                      width: 50,
+                                      child: TextField(
+                                        controller: _yearsController,
+                                        style: const TextStyle(fontSize: 13),
+                                        keyboardType: TextInputType.number,
+                                        onSubmitted: (v) {
+                                          simNotifier.updateSettings(
+                                            years: int.tryParse(v),
+                                          );
+                                        },
+                                        decoration: const InputDecoration(
+                                          border: OutlineInputBorder(),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 8,
+                                          ),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+
+                                  // Start Date
+                                  _buildFieldRow(
+                                    label: 'Start Date',
+                                    child: InkWell(
+                                      onTap: () async {
+                                        final DateTime? picked =
+                                            await showDatePicker(
+                                              context: context,
+                                              initialDate: simState.startDate,
+                                              firstDate: DateTime(2000),
+                                              lastDate: DateTime(2100),
+                                            );
+                                        if (picked != null) {
+                                          simNotifier.updateSettings(
+                                            startDate: picked,
+                                          );
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.calendar_today,
+                                              size: 14,
+                                              color: isDark
+                                                  ? Colors.grey[400]
+                                                  : Colors.grey[700],
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '${simState.startDate.day}/${simState.startDate.month}/${simState.startDate.year}',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+
+                                  // Run Button
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      // Validate Units Input
+                                      final unitsText = _unitsController.text
+                                          .trim();
+                                      final double? unitsVal = double.tryParse(
+                                        unitsText,
+                                      );
+
+                                      if (unitsVal == null) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Please enter a valid number for units',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return; // Stop execution
+                                      }
+
+                                      // Check Specific Constraints: 0.5 OR integer >= 1
+                                      bool isValid = false;
+                                      if (unitsVal == 0.5) {
+                                        isValid = true;
+                                      } else if (unitsVal >= 1 &&
+                                          (unitsVal % 1 == 0)) {
+                                        isValid = true;
+                                      }
+
+                                      if (!isValid) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Invalid Units: Please enter 0.5 or a whole number (1, 2, etc.)',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return; // Stop execution
+                                      }
+
+                                      // Ensure settings are updated from text fields before running
+                                      simNotifier.updateSettings(
+                                        units: unitsVal,
+                                        years: int.tryParse(
+                                          _yearsController.text,
+                                        ),
+                                      );
+                                      simNotifier.runSimulation();
+                                    },
+                                    icon: const Icon(
+                                      Icons.play_arrow,
+                                      size: 16,
+                                    ),
+                                    label: const Text(
+                                      'Run',
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // Reset Button
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      FocusScope.of(
+                                        context,
+                                      ).unfocus(); // Close keyboard
+                                      simNotifier.reset();
+                                      _unitsController.text = '1';
+                                      _yearsController.text = '10';
+                                    },
+                                    icon: const Icon(Icons.refresh, size: 16),
+                                    label: const Text(
+                                      'Reset',
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  _buildOverallStats(simState),
+                                ],
                               ),
                             );
                           }
-                          : null,
-                      icon: const Icon(Icons.table_chart),
-                      label: const Text('Price Estimation'),
-                    ),
-                  ],
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
 
         // Status indicator
-        if (treeData == null && revenueData == null)
+        if (simState.isLoading)
+          LinearProgressIndicator(color: Colors.blue[300])
+        else if (simState.treeData == null && simState.revenueData == null)
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.blue[50],
+            color: isDark
+                ? Colors.blue[900]!.withOpacity(0.3)
+                : Colors.blue[50],
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.info, color: Colors.blue[700]),
+                Icon(
+                  Icons.info,
+                  color: isDark ? Colors.blue[200] : Colors.blue[700],
+                ),
                 const SizedBox(width: 8),
-                Text(
-                  'Click "Run" to simulate and generate data for price estimation',
-                  style: TextStyle(color: Colors.blue[700]),
+                Flexible(
+                  child: Text(
+                    'Click "Run" to simulate and generate data for price estimation',
+                    style: TextStyle(
+                      color: isDark ? Colors.blue[200] : Colors.blue[700],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ],
-            ),
-          )
-        else if (treeData != null && revenueData != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.green[50],
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle, color: Colors.green[700]),
-                const SizedBox(width: 8),
-                Text(
-                  'Simulation data ready! ${treeData!['totalBuffaloes']} buffaloes simulated over $years years',
-                  style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-
-        // Buffalo Tree Visualization
-        if (treeData != null)
-          Expanded(
-            child: Container(
-              color: Colors.grey[50],
-              child: BuffaloTreeWidget(
-                treeData: treeData!,
-                theme: TreeTheme.vibrantGradients,
-                onAnalyticsPressed: () {
-                  if (treeData != null && revenueData != null) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => CostEstimationTable(
-                          treeData: treeData!,
-                          revenueData: revenueData!,
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
             ),
           )
         else
-          Expanded(
-            child: Container(
-              color: Colors.grey[50],
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.account_tree, size: 64, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No genealogy tree yet',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Click "Run" to generate the buffalo family tree',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: isDark
+                ? Colors.green[900]!.withOpacity(0.3)
+                : Colors.green[50],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: isDark ? Colors.green[300] : Colors.green[700],
                 ),
-              ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Simulation data ready! ${simState.treeData!['totalBuffaloes']} buffaloes simulated over ${simState.years} years',
+                    style: TextStyle(
+                      color: isDark ? Colors.green[300] : Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
           ),
 
-        // COMMENTED OUT: Using Flutter buffalo tree UI instead
-        // Expanded(
-        //   child: Container(
+        // Main Content Area
+        if (_currentView == ViewMode.tree)
+          Expanded(
+            child: Container(
+              color: isDark ? Colors.black : Colors.grey[50],
+              child: simState.treeData != null
+                  ? BuffaloTreeWidget(
+                      treeData: simState.treeData!,
+                      revenueData: simState.revenueData,
+                      theme: TreeTheme.vibrantGradients,
+                      onAnalyticsPressed: () {
+                        setState(() {
+                          _currentView = ViewMode.estimation;
+                        });
+                      },
+                      onFullscreenChanged: (isFullscreen) {
+                        setState(() {
+                          _isTreeFullscreen = isFullscreen;
+                        });
+                      },
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.account_tree,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No genealogy tree yet',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Click "Run" to generate the buffalo family tree',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          )
+        else // ViewMode.estimation
+          Expanded(
+            child: (simState.treeData != null && simState.revenueData != null)
+                ? CostEstimationTable(
+                    treeData: simState.treeData!,
+                    revenueData: simState.revenueData!,
+                    isEmbedded: true,
+                  )
+                : Container(
+                    color: isDark ? Colors.black : Colors.grey[50],
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.table_chart,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No estimation data yet',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Click "Run" to generate data for price estimation',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
       ],
     );
   }
 
-  String _monthName(int m) {
-    const monthNames = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December'
-    ];
-    return monthNames[m % 12];
+  // Full currency format
+  String _formatCurrency(double value) {
+    String result = value.toInt().toString();
+    return '₹${result.replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+  }
+
+  Widget _buildOverallStats(SimulationState simState) {
+    if (simState.treeData == null || simState.revenueData == null) {
+      return const SizedBox.shrink();
+    }
+
+    final buffaloes = simState.treeData!['buffaloes'] as List<dynamic>;
+    // final totalRevenue = simState.revenueData!['totalRevenue'] as double;
+    final years = simState.years;
+    final startYear = simState.startDate.year;
+    // final startMonth = simState.startDate.month - 1; // 0-based
+
+    // 1. Final Herd Size
+    final totalBuffaloes = buffaloes.length;
+
+    // 2. Net Revenue (From Simulation State - Single Source of Truth)
+    // Matches CostEstimationTable logic (Type A/B, Free Period, Age > 36mo)
+    final netRevenue =
+        (simState.revenueData!['totalNetRevenue'] as num?)?.toDouble() ?? 0.0;
+
+    // 3. Asset Value (Matching CostEstimationTable logic exactly)
+    double totalAssetValue = 0;
+    // Target: Last year of simulation (e.g., Year 10 = 2035 if start is 2026)
+    // Asset value calculated at Dec 31 of final year
+    final List<dynamic> yearlyData =
+        simState.revenueData!['yearlyData'] as List<dynamic>;
+    final lastYear = yearlyData.isNotEmpty
+        ? yearlyData.last['year'] as int
+        : startYear + years - 1;
+    final targetMonth = 11; // December (0-based)
+
+    for (final b in buffaloes) {
+      final birthYear = b['birthYear'] as int?;
+      if (birthYear == null || lastYear < birthYear) continue;
+
+      final birthMonth =
+          (b['birthMonth'] as int?) ?? (b['acquisitionMonth'] as int?) ?? 0;
+      final ageInMonths =
+          ((lastYear - birthYear) * 12) + (targetMonth - birthMonth);
+
+      if (ageInMonths < 0) continue;
+
+      int value = 3000;
+      if (ageInMonths >= 60)
+        value = 175000;
+      else if (ageInMonths >= 48)
+        value = 150000;
+      else if (ageInMonths >= 40)
+        value = 100000;
+      else if (ageInMonths >= 36)
+        value = 50000;
+      else if (ageInMonths >= 30)
+        value = 50000;
+      else if (ageInMonths >= 24)
+        value = 35000;
+      else if (ageInMonths >= 18)
+        value = 25000;
+      else if (ageInMonths >= 12)
+        value = 12000;
+      else if (ageInMonths >= 6)
+        value = 6000;
+
+      totalAssetValue += value;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(left: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildOverallStatItem('FINAL HERD', '$totalBuffaloes'),
+          const SizedBox(width: 16),
+          Container(width: 1, height: 24, color: Colors.grey[300]),
+          const SizedBox(width: 16),
+          _buildOverallStatItem(
+            'NET REVENUE',
+            _formatCurrency(netRevenue),
+            color: Colors.green[700],
+          ),
+          const SizedBox(width: 16),
+          Container(width: 1, height: 24, color: Colors.grey[300]),
+          const SizedBox(width: 16),
+          _buildOverallStatItem(
+            'ASSET VALUE',
+            _formatCurrency(totalAssetValue),
+            color: Colors.blue[700],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverallStatItem(String label, String value, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color ?? Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewToggle({
+    required IconData icon,
+    required String label,
+    required ViewMode mode,
+    required bool isDark,
+  }) {
+    final isSelected = _currentView == mode;
+    return InkWell(
+      onTap: () => setState(() => _currentView = mode),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? Colors.blue[900]!.withOpacity(0.5) : Colors.blue[100])
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected
+                  ? (isDark ? Colors.blue[200] : Colors.blue[700])
+                  : (isDark ? Colors.grey[400] : Colors.grey[600]),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isSelected
+                    ? (isDark ? Colors.blue[200] : Colors.blue[700])
+                    : (isDark ? Colors.grey[400] : Colors.grey[600]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildFieldRow({required String label, required Widget child}) {
