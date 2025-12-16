@@ -510,8 +510,8 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
     return SingleChildScrollView(
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 16 : 40,
-          vertical: isMobile ? 16 : 20,
+          horizontal: isMobile ? 0 : 40,
+          vertical: isMobile ? 0: 20,
         ),
         child: Column(
           children: [
@@ -550,19 +550,19 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                           child: DropdownButton<int>(
                             value: _selectedUnit,
                             isDense: true,
-                            icon: const Icon(
+                            icon:  Icon(
                               Icons.keyboard_arrow_down,
-                              size: 20,
+                              size: isMobile?16: 20,
                             ),
                             style: TextStyle(
                               color: isDark ? Colors.white : Colors.black,
                               fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                              fontSize:isMobile?11: 14,
                             ),
                             items: [
-                              const DropdownMenuItem<int>(
+                               DropdownMenuItem<int>(
                                 value: 0,
-                                child: Text('All Units'),
+                                child: Text('All Units',style: TextStyle(fontSize: isMobile?11:14),),
                               ),
                               ...List.generate(
                                 (widget.treeData['units'] as num? ?? 1).ceil(),
@@ -609,9 +609,9 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                           ? Colors.white
                                           : Colors.black,
                                     ),
-                                    icon: const Icon(
+                                    icon:  Icon(
                                       Icons.keyboard_arrow_down,
-                                      size: 24,
+                                      size:isMobile?17: 24,
                                     ),
                                     items: List.generate(
                                       (widget.treeData['years'] as num? ?? 10)
@@ -652,7 +652,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                 _selectedYear ==
                                     (widget.treeData['startYear'] as int) + 1)
                               Padding(
-                                padding: const EdgeInsets.only(top: 4),
+                                padding: const EdgeInsets.only(top: 4,bottom: 6),
                                 child: Text(
                                   'B CPF: Free (July-Dec ${widget.treeData['startYear']})',
                                   style: TextStyle(
@@ -813,7 +813,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                 size: 16,
                                 color: Colors.white,
                               ),
-                              label: Text(""),
+                              label: Text("Share",style: TextStyle(fontSize: 12),),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
@@ -992,13 +992,15 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                 return DataRow(
                                   cells: [
                                     DataCell(
-                                      Text(
-                                        monthName,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      Center(
+                                        child: Text(
+                                          monthName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1048,84 +1050,92 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                       };
 
                                       return DataCell(
-                                        Container(
-                                          color: bgColors[revenueType],
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          child: Text(
-                                            widget.formatCurrency(
-                                              (revenue as num).toDouble(),
+                                        Center(
+                                          child: Container(
+                                            color: bgColors[revenueType],
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
                                             ),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 12,
-                                              color: textColors[revenueType],
+                                            child: Text(
+                                              widget.formatCurrency(
+                                                (revenue as num).toDouble(),
+                                              ),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 12,
+                                                color: textColors[revenueType],
+                                              ),
                                             ),
                                           ),
                                         ),
                                       );
                                     }).toList(),
                                     DataCell(
-                                      Container(
-                                        color: Colors.grey[200],
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          widget.formatCurrency(
-                                            unitTotal.toDouble(),
+                                      Center(
+                                        child: Container(
+                                          color: Colors.grey[200],
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
                                           ),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? Colors.black87
-                                                : Colors.black87,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        color: Colors.amber[100],
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          widget.formatCurrency(monthlyCpf),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? Colors.amber[900]
-                                                : Colors.amber[900],
+                                          child: Text(
+                                            widget.formatCurrency(
+                                              unitTotal.toDouble(),
+                                            ),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? Colors.black87
+                                                  : Colors.black87,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                     DataCell(
-                                      Container(
-                                        color: netRevenue >= 0
-                                            ? Colors.green[100]
-                                            : Colors.red[100],
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          widget.formatCurrency(
-                                            netRevenue.toDouble(),
+                                      Center(
+                                        child: Container(
+                                          color: Colors.amber[100],
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
                                           ),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: netRevenue >= 0
-                                                ? Colors.green[700]
-                                                : Colors.red[700],
+                                          child: Text(
+                                            widget.formatCurrency(monthlyCpf),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? Colors.amber[900]
+                                                  : Colors.amber[900],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Center(
+                                        child: Container(
+                                          color: netRevenue >= 0
+                                              ? Colors.green[100]
+                                              : Colors.red[100],
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            widget.formatCurrency(
+                                              netRevenue.toDouble(),
+                                            ),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: netRevenue >= 0
+                                                  ? Colors.green[700]
+                                                  : Colors.red[700],
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -1138,11 +1148,13 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                               DataRow(
                                 cells: [
                                   const DataCell(
-                                    Text(
-                                      'Yearly Total',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Center(
+                                      child: Text(
+                                        'Yearly Total',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1159,49 +1171,57 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                       yearlyTotal += (revenue as int? ?? 0);
                                     }
                                     return DataCell(
-                                      Text(
+                                      Center(
+                                        child: Text(
+                                          widget.formatCurrency(
+                                            yearlyTotal.toDouble(),
+                                          ),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  DataCell(
+                                    Center(
+                                      child: Text(
                                         widget.formatCurrency(
-                                          yearlyTotal.toDouble(),
+                                          yearlyUnitTotal.toDouble(),
                                         ),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
                                         ),
                                       ),
-                                    );
-                                  }).toList(),
+                                    ),
+                                  ),
                                   DataCell(
-                                    Text(
-                                      widget.formatCurrency(
-                                        yearlyUnitTotal.toDouble(),
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Center(
+                                      child: Text(
+                                        widget.formatCurrency(
+                                          cpfCost['annualCPFCost']
+                                              .toString()
+                                              .parseDouble(),
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
                                   DataCell(
-                                    Text(
-                                      widget.formatCurrency(
-                                        cpfCost['annualCPFCost']
-                                            .toString()
-                                            .parseDouble(),
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      widget.formatCurrency(
-                                        yearlyNetRevenue.toDouble(),
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Center(
+                                      child: Text(
+                                        widget.formatCurrency(
+                                          yearlyNetRevenue.toDouble(),
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1213,11 +1233,13 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                               DataRow(
                                 cells: [
                                   DataCell(
-                                    Text(
-                                      'Cumulative Until $_selectedYear',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Center(
+                                      child: Text(
+                                        'Cumulative Until $_selectedYear',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1226,55 +1248,63 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                     final cumRev =
                                         cumulativeRevenue[displayId] ?? 0;
                                     return DataCell(
-                                      Text(
+                                      Center(
+                                        child: Text(
+                                          widget.formatCurrency(
+                                            cumRev.toDouble(),
+                                          ),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  DataCell(
+                                    Center(
+                                      child: Text(
                                         widget.formatCurrency(
-                                          cumRev.toDouble(),
+                                          totalCumulativeUntilYear.toDouble(),
                                         ),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
                                         ),
                                       ),
-                                    );
-                                  }).toList(),
+                                    ),
+                                  ),
                                   DataCell(
-                                    Text(
-                                      widget.formatCurrency(
-                                        totalCumulativeUntilYear.toDouble(),
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Center(
+                                      child: Text(
+                                        widget.formatCurrency(
+                                          // ((cpfCost['annualCPFCost'] as int) * 10)
+                                          //     .toDouble()
+                                          _getTotalCPFCostUntilYear().toDouble(),
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
                                   DataCell(
-                                    Text(
-                                      widget.formatCurrency(
-                                        // ((cpfCost['annualCPFCost'] as int) * 10)
-                                        //     .toDouble()
-                                        _getTotalCPFCostUntilYear().toDouble(),
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      widget.formatCurrency(
-                                        // (totalCumulativeUntilYear -
-                                        //         ((cpfCost['annualCPFCost'] as int) *
-                                        //             10))
-                                        //     .toDouble()
-                                        totalCumulativeUntilYear -
-                                            _getTotalCPFCostUntilYear()
-                                                .toDouble(),
-                                      ),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                    Center(
+                                      child: Text(
+                                        widget.formatCurrency(
+                                          // (totalCumulativeUntilYear -
+                                          //         ((cpfCost['annualCPFCost'] as int) *
+                                          //             10))
+                                          //     .toDouble()
+                                          totalCumulativeUntilYear -
+                                              _getTotalCPFCostUntilYear()
+                                                  .toDouble(),
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),

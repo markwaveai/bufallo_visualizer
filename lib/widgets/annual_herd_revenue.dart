@@ -32,7 +32,7 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
         return SingleChildScrollView(
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 16 : (isSmallScreen ? 24 : 40),
+              horizontal: isMobile ? 0: (isSmallScreen ? 24 : 40),
               vertical: isMobile ? 12 : 20,
             ),
             child: Column(
@@ -104,6 +104,7 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
                         columnSpacing: isMobile ? 8 : 20,
                         columns: [
                           DataColumn(
+                            headingRowAlignment: MainAxisAlignment.center,
                             label: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -127,6 +128,7 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
                             ),
                           ),
                           DataColumn(
+                            headingRowAlignment: MainAxisAlignment.center,
                             label: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -150,6 +152,7 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
                             ),
                           ),
                           DataColumn(
+                            headingRowAlignment: MainAxisAlignment.center,
                             label: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -224,126 +227,134 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
                           return DataRow(
                             cells: [
                               DataCell(
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.indigo[500]!,
-                                            Colors.indigo[600]!,
-                                          ],
+                                Center(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.indigo[500]!,
+                                              Colors.indigo[600]!,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(50),
                                         ),
-                                        borderRadius: BorderRadius.circular(50),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        '${index + 1}',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          year.toString(),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          '${index + 1}',
                                           style: TextStyle(
+                                            color: Colors.white,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 13,
+                                            fontSize: 12,
                                           ),
                                         ),
-                                        Text(
-                                          'Year ${index + 1}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey[500],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              DataCell(
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      formatNumber(totalBuffaloes),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.indigo[200]
-                                            : Colors.indigo,
                                       ),
-                                    ),
-                                    Text(
-                                      'total buffaloes',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey[500],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              DataCell(
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      formatCurrency(annualRevenue),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? Colors.green[300]
-                                            : Colors.green,
-                                      ),
-                                    ),
-                                    Text(
-                                      'CPF: -${formatCurrency(((data['cpfCost'] as num?) ?? 0).toDouble())}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.amber[600],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    if (growthRate != 0)
-                                      Row(
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            isPositiveGrowth ? '↑' : '↓',
+                                            year.toString(),
                                             style: TextStyle(
-                                              fontSize: 11,
-                                              color: growthColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
                                             ),
                                           ),
-                                          const SizedBox(width: 2),
                                           Text(
-                                            '${growthRate.abs().toStringAsFixed(1)}% growth',
+                                            'Year ${index + 1}',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: growthColor,
-                                              fontWeight: FontWeight.w500,
+                                              color: Colors.grey[500],
                                             ),
                                           ),
                                         ],
                                       ),
-                                  ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Center(
+                                  child: Column(
+                                    
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        formatNumber(totalBuffaloes),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.indigo[200]
+                                              : Colors.indigo,
+                                        ),
+                                      ),
+                                      Text(
+                                        'total buffaloes',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Center(
+                                  child: Column(
+                                   
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        formatCurrency(annualRevenue),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.green[300]
+                                              : Colors.green,
+                                        ),
+                                      ),
+                                      Text(
+                                        'CPF: -${formatCurrency(((data['cpfCost'] as num?) ?? 0).toDouble())}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.amber[600],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      if (growthRate != 0)
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              isPositiveGrowth ? '↑' : '↓',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: growthColor,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 2),
+                                            Text(
+                                              '${growthRate.abs().toStringAsFixed(1)}% growth',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: growthColor,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -423,26 +434,29 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
   }
 
   Widget _buildFooterCell(String title, String subtitle) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+    return Center(
+      child: Column(
+       
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.7),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

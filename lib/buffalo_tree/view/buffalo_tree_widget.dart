@@ -158,7 +158,7 @@ class _BuffaloTreeWidgetState extends State<BuffaloTreeWidget> {
           // Create a virtual root that contains all roots as children
           final virtualRoot = BuffaloNode(
             id: 'all_root',
-            name: 'All Buffaloes',
+            name: 'All',
             birthYear: widget.treeData['startYear'] ?? DateTime.now().year,
             generation: -1, // Virtual root is before Gen 0
             parentId: null,

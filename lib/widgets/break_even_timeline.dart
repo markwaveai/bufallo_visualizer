@@ -112,7 +112,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: EdgeInsets.all(isMobile ? 20 : 40),
+            padding: EdgeInsets.all(isMobile ?10 : 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -176,7 +176,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                             ),
                           ],
                         ),
-                        padding: const EdgeInsets.all(20),
+                        padding:  EdgeInsets.all(20),
                         child: Column(
                           children: [
                             Text(
@@ -1432,7 +1432,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 1),
                 Row(
                   children: [
                     Expanded(
@@ -1453,10 +1453,10 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                 const SizedBox(height: 8),
                 if (isBreakEvenRow)
                   Container(
-                    padding: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.only(bottom: 2),
                     child: Row(
                       children: [
-                        Icon(Icons.star, size: 12, color: Colors.green[700]),
+                        Icon(Icons.star, size: 10, color: Colors.green[700]),
                         const SizedBox(width: 4),
                         Text(
                           'Break-Even Achieved',
@@ -1472,7 +1472,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
-                    vertical: 2,
+                    vertical: 1,
                   ),
                   decoration: BoxDecoration(
                     color: color?.withValues(alpha: 0.1),
@@ -1548,6 +1548,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                 horizontalMargin: 8,
                 columns: [
                   DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
                     label: Expanded(
                       child: Text(
                         'Year\nMonth',
@@ -1561,6 +1562,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     ),
                   ),
                   DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
                     label: Text(
                       'Revenue (Net)',
                       style: TextStyle(
@@ -1571,6 +1573,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     numeric: true,
                   ),
                   DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
                     label: Text(
                       'Cumulative',
                       style: TextStyle(
@@ -1581,6 +1584,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     numeric: true,
                   ),
                   DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
                     label: Text(
                       'Asset Value',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1588,6 +1592,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     numeric: true,
                   ),
                   DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
                     label: Text(
                       'Total Value',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1595,6 +1600,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     numeric: true,
                   ),
                   DataColumn(
+                    headingRowAlignment: MainAxisAlignment.center,
                     label: Text(
                       'Recovery %',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1617,13 +1623,16 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                         : null,
                     cells: [
                       DataCell(
-                        Text(
-                          yearDisplay,
-                          style: TextStyle(
-                            fontWeight: isBreakEvenRow
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isDark ? Colors.white : null,
+                        Align(
+                          child: Text(
+                            
+                            yearDisplay,
+                            style: TextStyle(
+                              fontWeight: isBreakEvenRow
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isDark ? Colors.white : null,
+                            ),
                           ),
                         ),
                       ),

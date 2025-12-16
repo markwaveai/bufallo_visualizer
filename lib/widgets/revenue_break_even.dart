@@ -109,10 +109,10 @@ class RevenueBreakEvenWidget extends StatelessWidget {
     final finalCombinedValue = finalCumulativeRevenueWithCPF + finalAssetValue;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
+final isMobile=MediaQuery.of(context).size.width<600;
     return SingleChildScrollView(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+        padding: isMobile? EdgeInsets.symmetric(horizontal: 0, vertical: 0): EdgeInsets.symmetric(horizontal: 40, vertical: 20),
         child: Column(
           children: [
             // Header
@@ -893,121 +893,133 @@ class RevenueBreakEvenWidget extends StatelessWidget {
                                       ),
                                       cells: [
                                         DataCell(
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                year.toString(),
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDark
-                                                      ? Colors.white
-                                                      : Colors.black,
-                                                ),
-                                              ),
-                                              if (isRevenueBreakEven)
-                                                Container(
-                                                  margin: const EdgeInsets.only(
-                                                    top: 4,
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
+                                          Center(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  year.toString(),
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
                                                     color: isDark
-                                                        ? Colors.green[800]
-                                                        : Colors.green[100],
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          4,
-                                                        ),
+                                                        ? Colors.white
+                                                        : Colors.black,
                                                   ),
-                                                  child: Text(
-                                                    '⭐ Break-Even',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: isDark
-                                                          ? Colors.green[100]
-                                                          : Colors.green[700],
+                                                ),
+                                                if (isRevenueBreakEven)
+                                                  Center(
+                                                    child: Container(
+                                                      margin: const EdgeInsets.only(
+                                                        top: 4,
+                                                      ),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 2,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: isDark
+                                                            ? Colors.green[800]
+                                                            : Colors.green[100],
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              4,
+                                                            ),
+                                                      ),
+                                                      child: Text(
+                                                        '⭐ Break-Even',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: isDark
+                                                              ? Colors.green[100]
+                                                              : Colors.green[700],
+                                                        ),
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                         DataCell(
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                formatCurrency(
-                                                  annualRevenue.toDouble(),
+                                          Center(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  formatCurrency(
+                                                    annualRevenue.toDouble(),
+                                                  ),
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDark
+                                                        ? Colors.green[300]
+                                                        : Colors.green,
+                                                  ),
                                                 ),
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDark
-                                                      ? Colors.green[300]
-                                                      : Colors.green,
+                                                Text(
+                                                  'CPF: -${formatCurrency((yearData['cpfCost'] as int? ?? 0).toDouble())}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark
+                                                        ? Colors.grey[400]
+                                                        : Colors.grey[500],
+                                                  ),
                                                 ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Center(
+                                            child: Text(
+                                              formatCurrency(
+                                                cumulativeRevenue.toDouble(),
                                               ),
-                                              Text(
-                                                'CPF: -${formatCurrency((yearData['cpfCost'] as int? ?? 0).toDouble())}',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: isDark
-                                                      ? Colors.grey[400]
-                                                      : Colors.grey[500],
-                                                ),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark
+                                                    ? Colors.blue[300]
+                                                    : Colors.blue,
                                               ),
-                                            ],
-                                          ),
-                                        ),
-                                        DataCell(
-                                          Text(
-                                            formatCurrency(
-                                              cumulativeRevenue.toDouble(),
-                                            ),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark
-                                                  ? Colors.blue[300]
-                                                  : Colors.blue,
                                             ),
                                           ),
                                         ),
                                         DataCell(
-                                          Text(
-                                            formatCurrency(
-                                              assetValue.toDouble(),
-                                            ),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark
-                                                  ? Colors.deepPurple[300]
-                                                  : Colors.deepPurple,
+                                          Center(
+                                            child: Text(
+                                              formatCurrency(
+                                                assetValue.toDouble(),
+                                              ),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark
+                                                    ? Colors.deepPurple[300]
+                                                    : Colors.deepPurple,
+                                              ),
                                             ),
                                           ),
                                         ),
                                         DataCell(
-                                          Text(
-                                            formatCurrency(
-                                              totalValueWithCPF.toDouble(),
-                                            ),
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark
-                                                  ? Colors.indigo[300]
-                                                  : Colors.indigo,
+                                          Center(
+                                            child: Text(
+                                              formatCurrency(
+                                                totalValueWithCPF.toDouble(),
+                                              ),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark
+                                                    ? Colors.indigo[300]
+                                                    : Colors.indigo,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -1151,122 +1163,134 @@ class RevenueBreakEvenWidget extends StatelessWidget {
                                     ),
                                     cells: [
                                       const DataCell(
-                                        Text(
-                                          'FINAL TOTALS',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
+                                        Center(
+                                          child: Text(
+                                            'FINAL TOTALS',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ),
                                       ),
                                       DataCell(
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              formatCurrency(
-                                                totalAnnualRevenueWithCPF,
+                                        Center(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                formatCurrency(
+                                                  totalAnnualRevenueWithCPF,
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.greenAccent,
+                                                ),
                                               ),
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.greenAccent,
+                                              Text(
+                                                'Total CPF: ${formatCurrency(totalCpfCost)}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[300],
+                                                ),
                                               ),
-                                            ),
-                                            Text(
-                                              'Total CPF: ${formatCurrency(totalCpfCost)}',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey[300],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Text(
-                                          formatCurrency(
-                                            finalCumulativeRevenueWithCPF,
-                                          ),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.indigoAccent,
+                                            ],
                                           ),
                                         ),
                                       ),
                                       DataCell(
-                                        Text(
-                                          formatCurrency(finalAssetValue),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.deepPurpleAccent,
+                                        Center(
+                                          child: Text(
+                                            formatCurrency(
+                                              finalCumulativeRevenueWithCPF,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.indigoAccent,
+                                            ),
                                           ),
                                         ),
                                       ),
                                       DataCell(
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              formatCurrency(
-                                                finalCombinedValue,
-                                              ),
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.greenAccent,
-                                              ),
+                                        Center(
+                                          child: Text(
+                                            formatCurrency(finalAssetValue),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.deepPurpleAccent,
                                             ),
-                                            Text(
-                                              'Revenue + Assets',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey[300],
-                                              ),
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       ),
                                       DataCell(
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Text(
-                                              'ROI',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500,
-                                                color: Colors.white70,
+                                        Center(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                formatCurrency(
+                                                  finalCombinedValue,
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.greenAccent,
+                                                ),
                                               ),
-                                            ),
-                                            Text(
-                                              '${combinedRoiPercent.toStringAsFixed(1)}%',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.greenAccent,
+                                              Text(
+                                                'Revenue + Assets',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[300],
+                                                ),
                                               ),
-                                            ),
-                                            Text(
-                                              '${formatCurrency(initialInvestment.toDouble())} initial',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.grey[300],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Center(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Text(
+                                                'ROI',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.white70,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                              Text(
+                                                '${combinedRoiPercent.toStringAsFixed(1)}%',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.greenAccent,
+                                                ),
+                                              ),
+                                              Text(
+                                                '${formatCurrency(initialInvestment.toDouble())} initial',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[300],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -1280,74 +1304,93 @@ class RevenueBreakEvenWidget extends StatelessWidget {
                                   columnSpacing: 16,
                                   columns: [
                                     DataColumn(
-                                      label: Text(
-                                        'Year',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      headingRowAlignment: MainAxisAlignment.center,
+                                      label: Center(
+                                        child: Text(
+                                          
+                                          'Year',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
                                     DataColumn(
-                                      label: Text(
-                                        'Annual Revenue (Net)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      headingRowAlignment: MainAxisAlignment.center,
+                                      label: Center(
+                                        child: Text(
+                                          'Annual Revenue (Net)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
                                     DataColumn(
-                                      label: Text(
-                                        'Cumulative (Net)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      headingRowAlignment: MainAxisAlignment.center,
+                                      label: Center(
+                                        child: Text(
+                                          'Cumulative (Net)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
                                     DataColumn(
-                                      label: Text(
-                                        'Asset Market Value',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      headingRowAlignment: MainAxisAlignment.center,
+                                      label: Center(
+                                        child: Text(
+                                          'Asset Market Value',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
                                     DataColumn(
-                                      label: Text(
-                                        'Total Value (Rev + Asset)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      headingRowAlignment: MainAxisAlignment.center,
+                                      label: Center(
+                                        child: Text(
+                                          'Total Value (Rev + Asset)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),
                                     DataColumn(
-                                      label: Text(
-                                        'Investment Recovery',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
+                                      headingRowAlignment: MainAxisAlignment.center,
+                                      label: Center(
+                                        child: Text(
+                                          'Investment Recovery',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
                                         ),
                                       ),
                                     ),

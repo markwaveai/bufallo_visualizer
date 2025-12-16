@@ -40,7 +40,7 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
 
     return SingleChildScrollView(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+        padding: isMobile?EdgeInsets.all(0): EdgeInsets.symmetric(horizontal: 40, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -258,6 +258,7 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                               columnSpacing: 16,
                               columns: [
                                 DataColumn(
+                                  headingRowAlignment: MainAxisAlignment.center,
                                   label: Text(
                                     'Year',
                                     style: TextStyle(
@@ -270,6 +271,7 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                                   ),
                                 ),
                                 DataColumn(
+                                  headingRowAlignment: MainAxisAlignment.center,
                                   label: Text(
                                     'Total Buffaloes',
                                     style: TextStyle(
@@ -282,6 +284,7 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                                   ),
                                 ),
                                 DataColumn(
+                                  headingRowAlignment: MainAxisAlignment.center,
                                   label: Text(
                                     'Producing',
                                     style: TextStyle(
@@ -294,6 +297,7 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                                   ),
                                 ),
                                 DataColumn(
+                                  headingRowAlignment: MainAxisAlignment.center,
                                   label: Text(
                                     'Production %',
                                     style: TextStyle(
@@ -306,14 +310,17 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                                   ),
                                 ),
                                 DataColumn(
-                                  label: Text(
-                                    'YoY Growth',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: isDark
-                                          ? Colors.white
-                                          : Colors.black,
+                                  headingRowAlignment: MainAxisAlignment.center,
+                                  label: Center(
+                                    child: Text(
+                                      'YoY Growth',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -347,100 +354,110 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                                 return DataRow(
                                   cells: [
                                     DataCell(
-                                      Text(
-                                        year.toString(),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark
-                                              ? Colors.white
-                                              : Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Container(
-                                        color: isDark
-                                            ? Colors.blue[900]
-                                            : Colors.blue[50],
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
+                                      Center(
                                         child: Text(
-                                          widget.formatNumber(total),
+                                          year.toString(),
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 12,
                                             color: isDark
-                                                ? Colors.blue[100]
+                                                ? Colors.white
                                                 : Colors.black,
                                           ),
                                         ),
                                       ),
                                     ),
                                     DataCell(
-                                      Container(
-                                        color: isDark
-                                            ? Colors.green[900]
-                                            : Colors.green[50],
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          widget.formatNumber(producing),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? Colors.green[100]
-                                                : Colors.green[700],
+                                      Center(
+                                        child: Container(
+                                          color: isDark
+                                              ? Colors.blue[900]
+                                              : Colors.blue[50],
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            widget.formatNumber(total),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? Colors.blue[100]
+                                                  : Colors.black,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                     DataCell(
-                                      Container(
-                                        color: isDark
-                                            ? Colors.purple[900]
-                                            : Colors.purple[50],
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          '$productionPct%',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? Colors.purple[100]
-                                                : Colors.purple[700],
+                                      Center(
+                                        child: Container(
+                                          color: isDark
+                                              ? Colors.green[900]
+                                              : Colors.green[50],
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            widget.formatNumber(producing),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? Colors.green[100]
+                                                  : Colors.green[700],
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                     DataCell(
-                                      Container(
-                                        color: isDark
-                                            ? growthColor.withValues(alpha: 0.1)
-                                            : growthColor.withValues(
-                                                alpha: 0.2,
-                                              ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
+                                      Center(
+                                        child: Container(
+                                          color: isDark
+                                              ? Colors.purple[900]
+                                              : Colors.purple[50],
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            '$productionPct%',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? Colors.purple[100]
+                                                  : Colors.purple[700],
+                                            ),
+                                          ),
                                         ),
-                                        child: Text(
-                                          '$growth%',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color:
-                                                isDark &&
-                                                    growthColor == Colors.green
-                                                ? Colors.green[300]
-                                                : growthColor,
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Center(
+                                        child: Container(
+                                          color: isDark
+                                              ? growthColor.withValues(alpha: 0.1)
+                                              : growthColor.withValues(
+                                                  alpha: 0.2,
+                                                ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          child: Text(
+                                            '$growth%',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color:
+                                                  isDark &&
+                                                      growthColor == Colors.green
+                                                  ? Colors.green[300]
+                                                  : growthColor,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -596,20 +613,20 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
         ),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(15),
       child: Column(
         children: [
           Text(
             value,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: isDark
                   ? (color[100] ?? Colors.white)
                   : (color[700] ?? Colors.black),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 2),
           Text(
             title,
             style: TextStyle(
@@ -620,7 +637,7 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                   : (color[800] ?? Colors.grey[800]),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             subtitle,
             style: TextStyle(

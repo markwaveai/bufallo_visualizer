@@ -292,6 +292,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
     // Basic Data Checks
     final totalBuffaloes = widget.buffaloDetails.length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
 
     if (_assetMarketValue.isEmpty || totalBuffaloes == 0) {
       return Padding(
@@ -332,7 +333,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
           ? const Color(0xFF121212)
           : const Color(0xFFF5F7FA), // Premium Background
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: isMobile?EdgeInsets.all(0): EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -401,7 +402,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding:  EdgeInsets.all(20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -411,11 +412,11 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
                               Icons.inventory_2_outlined,
                               color: Colors.purple[600],
                             ),
-                            const SizedBox(width: 12),
+                             SizedBox(width: isMobile?8:12),
                             Text(
                               'Detailed Breakdown',
                               style: TextStyle(
-                                fontSize: isMobile ? 16 : 20,
+                                fontSize: isMobile ? 13 : 20,
                                 fontWeight: FontWeight.bold,
                                 color: isDark ? Colors.white : Colors.grey[900],
                               ),
@@ -483,10 +484,11 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               : (_assetMarketValue.firstOrNull),
           icon: Icon(
             Icons.arrow_drop_down,
+            size: isMobile?18:16,
             color: isDark ? Colors.grey[400] : Colors.grey[600],
           ),
           style: TextStyle(
-            fontSize: isMobile ? 12 : 14,
+            fontSize: isMobile ? 11 : 14,
             fontWeight: FontWeight.w600,
             color: isDark ? Colors.white : Colors.grey[900],
           ),
@@ -521,9 +523,11 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
           ),
           dataRowMinHeight: 52,
           dataRowMaxHeight: 52,
-          columnSpacing: 32,
+          columnSpacing: 172,
           columns: [
             DataColumn(
+              headingRowAlignment: MainAxisAlignment.center,
+              
               label: Text(
                 'Year',
                 style: TextStyle(
@@ -533,6 +537,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               ),
             ),
             DataColumn(
+             
               label: Text(
                 'Total Herd',
                 style: TextStyle(
@@ -543,6 +548,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               numeric: true,
             ),
             DataColumn(
+           
               label: Text(
                 'Calves (0-6m)',
                 style: TextStyle(
@@ -553,6 +559,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               numeric: true,
             ),
             DataColumn(
+             
               label: Text(
                 'Mothers (60+m)',
                 style: TextStyle(
@@ -563,6 +570,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               numeric: true,
             ),
             DataColumn(
+            
               label: Text(
                 'Total Asset Value',
                 style: TextStyle(
@@ -600,57 +608,67 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
             return DataRow(
               cells: [
                 DataCell(
-                  Text(
-                    yearLabel,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.grey[900],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.blue[900]!.withValues(alpha: 0.2)
-                          : Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  Center(
                     child: Text(
-                      '${asset['totalBuffaloes']}',
+                      yearLabel,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.blue[200] : Colors.blue[800],
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.grey[900],
                       ),
                     ),
                   ),
                 ),
                 DataCell(
-                  Text(
-                    '$calfCount',
-                    style: TextStyle(
-                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.blue[900]!.withValues(alpha: 0.2)
+                            : Colors.blue[50],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${asset['totalBuffaloes']}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.blue[200] : Colors.blue[800],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 DataCell(
-                  Text(
-                    '$motherCount',
-                    style: TextStyle(
-                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                  Center(
+                    child: Text(
+                      '$calfCount',
+                      style: TextStyle(
+                        color: isDark ? Colors.grey[300] : Colors.grey[700],
+                      ),
                     ),
                   ),
                 ),
                 DataCell(
-                  Text(
-                    widget.formatCurrency(totalVal),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.green[300] : Colors.green[700],
+                  Center(
+                    child: Text(
+                      '$motherCount',
+                      style: TextStyle(
+                        color: isDark ? Colors.grey[300] : Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  Center(
+                    child: Text(
+                      widget.formatCurrency(totalVal),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.green[300] : Colors.green[700],
+                      ),
                     ),
                   ),
                 ),
