@@ -483,10 +483,11 @@ class _HerdPerformanceWidgetState extends State<HerdPerformanceWidget> {
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 1, // ✅ Mobile: single column
+                          crossAxisCount: 2, // ✅ Mobile: single column
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 3.0, // adjust height of card
+                          
+                          childAspectRatio: 1.5, // adjust height of card
                         ),
                     itemCount: 4,
                     itemBuilder: (context, index) {

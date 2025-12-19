@@ -1298,7 +1298,10 @@ final isMobile=MediaQuery.of(context).size.width<600;
                                 );
 
                                 return DataTable(
-                                  headingRowColor: WidgetStateProperty.all(
+                                  dataRowMaxHeight: 55,
+                                  dataRowMinHeight: 40,
+                                  headingRowColor: 
+                                  WidgetStateProperty.all(
                                     isDark ? Colors.grey[800] : Colors.blue[50],
                                   ),
                                   columnSpacing: 16,

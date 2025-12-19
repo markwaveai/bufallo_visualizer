@@ -1427,7 +1427,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                 Text(
                   '${percentage.toStringAsFixed(1)}% recovered',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: Colors.grey[600],
                     fontWeight: FontWeight.w500,
                   ),
@@ -1527,7 +1527,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 800;
+        final isSmallScreen = constraints.maxWidth < 600;
 
         if (isSmallScreen) {
           // Mobile: Use simpler DataTable

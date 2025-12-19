@@ -520,7 +520,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
             // Redesigned Header Layout
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: isMobile?EdgeInsets.all(10): EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey[900] : Colors.white,
                 border: Border.all(
@@ -813,7 +813,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                 size: 16,
                                 color: Colors.white,
                               ),
-                              label: Text("Share",style: TextStyle(fontSize: 12),),
+                              label: Text("Share",style: TextStyle(fontSize: 10),),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,

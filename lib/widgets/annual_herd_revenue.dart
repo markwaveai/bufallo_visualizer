@@ -98,7 +98,7 @@ class AnnualHerdRevenueWidget extends StatelessWidget {
                         headingRowColor: WidgetStateProperty.all(
                           isDark
                               ? Colors.blue[900]!.withValues(alpha: 0.3)
-                              : Colors.blue[50],
+                              : Colors.indigo[100],
                         ),
                         dataRowHeight: 70, // Increased cell height
                         columnSpacing: isMobile ? 8 : 20,

@@ -513,69 +513,100 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
   }
 
   Widget _buildYearlyOverviewTable(bool isDark, BoxConstraints constraints) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: constraints.maxWidth),
-        child: DataTable(
+    final isMobile = constraints.maxWidth < 600;
+
+    const columnCount = 5;
+    final horizontalMargin = isMobile ? 8.0 : 12.0;
+    final availableWidth =
+        (constraints.maxWidth - (horizontalMargin * 2)).clamp(0, double.infinity);
+    final colWidth = isMobile ? 130.0 : (availableWidth / columnCount);
+
+    final table = DataTable(
           headingRowColor: WidgetStateProperty.all(
             isDark ? Colors.grey[850] : const Color(0xFFF9FAFB),
           ),
           dataRowMinHeight: 52,
           dataRowMaxHeight: 52,
-          columnSpacing: 172,
+          headingRowHeight: 52,
+          horizontalMargin: horizontalMargin,
+          columnSpacing: 0,
           columns: [
             DataColumn(
-              headingRowAlignment: MainAxisAlignment.center,
+              // headingRowAlignment: MainAxisAlignment.start,
               
-              label: Text(
-                'Year',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
+              label: SizedBox(
+                width: colWidth,
+                child: Center(
+                  child: Text(
+                    'Year',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
                 ),
               ),
             ),
             DataColumn(
              
-              label: Text(
-                'Total Herd',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
+              label: SizedBox(
+                width: colWidth,
+                child: Center(
+                  child: Text(
+                    'Total Herd',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
                 ),
               ),
               numeric: true,
             ),
             DataColumn(
            
-              label: Text(
-                'Calves (0-6m)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
+              label: SizedBox(
+                width: colWidth,
+                child: Center(
+                  child: Text(
+                    'Calves (0-6m)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
                 ),
               ),
               numeric: true,
             ),
             DataColumn(
              
-              label: Text(
-                'Mothers (60+m)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
+              label: SizedBox(
+                width: colWidth,
+                child: Center(
+                  child: Text(
+                    'Mothers (60+m)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
                 ),
               ),
               numeric: true,
             ),
             DataColumn(
             
-              label: Text(
-                'Total Asset Value',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : Colors.grey[700],
+              label: SizedBox(
+                width: colWidth,
+                child: Center(
+                  child: Text(
+                    'Total Asset Value',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
                 ),
               ),
               numeric: true,
@@ -608,66 +639,69 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
             return DataRow(
               cells: [
                 DataCell(
-                  Center(
-                    child: Text(
-                      yearLabel,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.grey[900],
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.blue[900]!.withValues(alpha: 0.2)
-                            : Colors.blue[50],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  SizedBox(
+                    width: colWidth,
+                    child: Center(
                       child: Text(
-                        '${asset['totalBuffaloes']}',
+                        yearLabel,
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.blue[200] : Colors.blue[800],
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.grey[900],
                         ),
                       ),
                     ),
                   ),
                 ),
                 DataCell(
-                  Center(
-                    child: Text(
-                      '$calfCount',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[300] : Colors.grey[700],
+                  SizedBox(
+                    width: colWidth,
+                    child: Center(
+                      child: Text(
+                        '${asset['totalBuffaloes']}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : Colors.grey[800],
+                        ),
                       ),
                     ),
                   ),
                 ),
                 DataCell(
-                  Center(
-                    child: Text(
-                      '$motherCount',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[300] : Colors.grey[700],
+                  SizedBox(
+                    width: colWidth,
+                    child: Center(
+                      child: Text(
+                        '$calfCount',
+                        style: TextStyle(
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
                       ),
                     ),
                   ),
                 ),
                 DataCell(
-                  Center(
-                    child: Text(
-                      widget.formatCurrency(totalVal),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.green[300] : Colors.green[700],
+                  SizedBox(
+                    width: colWidth,
+                    child: Center(
+                      child: Text(
+                        '$motherCount',
+                        style: TextStyle(
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: colWidth,
+                    child: Center(
+                      child: Text(
+                        widget.formatCurrency(totalVal),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.green[300] : Colors.green[700],
+                        ),
                       ),
                     ),
                   ),
@@ -675,8 +709,18 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               ],
             );
           }).toList(),
-        ),
-      ),
+        );
+
+    if (isMobile) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: table,
+      );
+    }
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: table,
     );
   }
 

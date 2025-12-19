@@ -13,6 +13,8 @@ class BuffaloTreeWidget extends StatefulWidget {
   final NodeShape nodeShape;
   final VoidCallback? onAnalyticsPressed;
   final ValueChanged<bool>? onFullscreenChanged;
+  final String? selectedBuffaloType;
+  final ValueChanged<String>? onSelectedBuffaloTypeChanged;
 
   const BuffaloTreeWidget({
     super.key,
@@ -22,6 +24,8 @@ class BuffaloTreeWidget extends StatefulWidget {
     this.nodeShape = NodeShape.roundedRectangle,
     this.onAnalyticsPressed,
     this.onFullscreenChanged,
+    this.selectedBuffaloType,
+    this.onSelectedBuffaloTypeChanged,
   });
 
   @override
@@ -37,6 +41,7 @@ class _BuffaloTreeWidgetState extends State<BuffaloTreeWidget> {
   @override
   void initState() {
     super.initState();
+    _selectedBuffaloType = widget.selectedBuffaloType ?? 'A';
     _parseTreeData();
   }
 
@@ -45,6 +50,15 @@ class _BuffaloTreeWidgetState extends State<BuffaloTreeWidget> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.treeData != widget.treeData) {
       _parseTreeData();
+    }
+
+    if (widget.selectedBuffaloType != null &&
+        oldWidget.selectedBuffaloType != widget.selectedBuffaloType &&
+        widget.selectedBuffaloType != _selectedBuffaloType) {
+      setState(() {
+        _selectedBuffaloType = widget.selectedBuffaloType!;
+        _parseTreeData();
+      });
     }
   }
 
@@ -233,84 +247,87 @@ class _BuffaloTreeWidgetState extends State<BuffaloTreeWidget> {
                 final isMobile = constraints.maxWidth < 600;
 
                 if (isMobile) {
+                  return const SizedBox.shrink();
+
                   // Mobile: Vertical stack with scrollable stats
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Type Toggle - Scrollable on very small screens
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(3.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildTypeButton(
-                                  'A',
-                                  'Batch A',
-                                  'Start',
-                                  _getBuffaloCount('A'),
-                                  compact: true,
-                                ),
-                                if (_getBuffaloCount('B') > 0) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    width: 1,
-                                    height: 20,
-                                    color: Colors.grey[300],
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildTypeButton(
-                                    'B',
-                                    'Batch B',
-                                    '+6mo',
-                                    _getBuffaloCount('B'),
-                                    compact: true,
-                                  ),
-                                ],
-                                const SizedBox(width: 6),
-                                Container(
-                                  width: 1,
-                                  height: 20,
-                                  color: Colors.grey[300],
-                                ),
-                                const SizedBox(width: 6),
-                                _buildTypeButton(
-                                  'ALL',
-                                  'All',
-                                  'Total',
-                                  _getBuffaloCount('ALL'),
-                                  compact: true,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                  // return Column(
+                  //   crossAxisAlignment: CrossAxisAlignment.start,
+                  //   mainAxisSize: MainAxisSize.min,
+                  //   children: [
+                  //     // Type Toggle - Scrollable on very small screens
+                  //     SingleChildScrollView(
+                  //       scrollDirection: Axis.horizontal,
+                  //       child: Container(
+                  //         decoration: BoxDecoration(
+                  //           color: Colors.white,
+                  //           borderRadius: BorderRadius.circular(20),
+                  //           boxShadow: [
+                  //             BoxShadow(
+                  //               color: Colors.black.withOpacity(0.1),
+                  //               blurRadius: 6,
+                  //               offset: const Offset(0, 2),
+                  //             ),
+                  //           ],
+                  //         ),
+                  //         child: Padding(
+                  //           padding: const EdgeInsets.all(3.0),
+                  //           child: Row(
+                  //             mainAxisSize: MainAxisSize.min,
+                  //             children: [
+                  //               _buildTypeButton(
+                  //                 'A',
+                  //                 'Batch A',
+                  //                 'Start',
+                  //                 _getBuffaloCount('A'),
+                  //                 compact: true,
+                  //               ),
+                  //               if (_getBuffaloCount('B') > 0) ...[
+                  //                 const SizedBox(width: 6),
+                  //                 Container(
+                  //                   width: 1,
+                  //                   height: 20,
+                  //                   color: Colors.grey[300],
+                  //                 ),
+                  //                 const SizedBox(width: 6),
+                  //                 _buildTypeButton(
+                  //                   'B',
+                  //                   'Batch B',
+                  //                   '+6mo',
+                  //                   _getBuffaloCount('B'),
+                  //                   compact: true,
+                  //                 ),
+                  //               ],
+                  //               const SizedBox(width: 6),
+                  //               Container(
+                  //                 width: 1,
+                  //                 height: 20,
+                  //                 color: Colors.grey[300],
+                  //               ),
+                  //               const SizedBox(width: 6),
+                  //               _buildTypeButton(
+                  //                 'ALL',
+                  //                 'All',
+                  //                 'Total',
+                  //                 _getBuffaloCount('ALL'),
+                  //                 compact: true,
+                  //               ),
+                  //             ],
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ),
 
-                      const SizedBox(height: 8),
+                  //     const SizedBox(height: 8),
 
-                      // Filtered Stats - Scrollable
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: _buildFilteredStatsWidget(),
-                      ),
-                    ],
-                  );
-                } else {
+                  //     // Filtered Stats - Scrollable
+                  //     SingleChildScrollView(
+                  //       scrollDirection: Axis.horizontal,
+                  //       child: _buildFilteredStatsWidget(),
+                  //     ),
+                  //   ],
+                  // );
+                } 
+                else {
                   // Desktop: Horizontal layout
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,6 +706,8 @@ class _BuffaloTreeWidgetState extends State<BuffaloTreeWidget> {
             _selectedBuffaloType = type;
             _parseTreeData(); // Rebuild tree with new filter
           });
+
+          widget.onSelectedBuffaloTypeChanged?.call(type);
         },
         borderRadius: BorderRadius.circular(compact ? 10 : 12),
         child: Container(
