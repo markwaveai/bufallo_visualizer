@@ -54,7 +54,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
           // Check if buffalo has any revenue in the selected year
           bool hasRevenue = false;
           for (int month = 0; month < 12; month++) {
-            final displayId = buffalo['id'] as String;
+            final displayId = buffalo['id'].toString();
             final revenue =
                 (widget.monthlyRevenue[_selectedYear.toString()]?[month
                         .toString()]?['buffaloes']
@@ -82,7 +82,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
     int year,
     int month,
   ) {
-    final id = buffalo['id'] as String?;
+    final id = buffalo['id']?.toString();
     final gen = buffalo['generation'] as int? ?? 0;
     final startYear = widget.treeData['startYear'] as int;
 
@@ -159,7 +159,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
       } else if (monthsWithCPF > 0) {
         reason = "Partial ($monthsWithCPF months)";
       } else {
-        final id = buffalo['id'] as String?;
+        final id = buffalo['id']?.toString();
         final gen = buffalo['generation'] as int? ?? 0;
         final startYear = widget.treeData['startYear'] as int;
 
@@ -200,7 +200,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
 
     for (final buffalo in unitBuffaloes) {
       double total = 0;
-      final displayId = buffalo['id'] as String;
+      final displayId = buffalo['id'].toString();
 
       for (
         int year = widget.treeData['startYear'] as int;
@@ -299,7 +299,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
 
       double unitTotal = 0;
       for (final buffalo in unitBuffaloes) {
-        final displayId = buffalo['id'] as String;
+        final displayId = buffalo['id'].toString();
         final revenue =
             (widget.monthlyRevenue[_selectedYear.toString()]?[month
                     .toString()]?['buffaloes']
@@ -425,7 +425,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                   ];
 
                   for (final buffalo in unitBuffaloes) {
-                    final displayId = buffalo['id'] as String;
+                    final displayId = buffalo['id'].toString();
                     final revenue =
                         (widget.monthlyRevenue[_selectedYear
                                 .toString()]?[monthIndex
@@ -490,7 +490,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
     final totalCumulativeUntilYear = _getTotalCumulativeRevenueUntilYear();
     final yearlyUnitTotal = unitBuffaloes.fold<double>(0.0, (sum, buffalo) {
       double total = 0;
-      final displayId = buffalo['id'] as String;
+      final displayId = buffalo['id'].toString();
       for (int month = 0; month < 12; month++) {
         final revenue =
             (widget.monthlyRevenue[_selectedYear.toString()]?[month
@@ -511,7 +511,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
       child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 0 : 40,
-          vertical: isMobile ? 0: 20,
+          vertical: isMobile ? 0 : 20,
         ),
         child: Column(
           children: [
@@ -520,7 +520,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
             // Redesigned Header Layout
             Container(
               width: double.infinity,
-              padding: isMobile?EdgeInsets.all(10): EdgeInsets.all(24),
+              padding: isMobile ? EdgeInsets.all(10) : EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey[900] : Colors.white,
                 border: Border.all(
@@ -550,19 +550,24 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                           child: DropdownButton<int>(
                             value: _selectedUnit,
                             isDense: true,
-                            icon:  Icon(
+                            icon: Icon(
                               Icons.keyboard_arrow_down,
-                              size: isMobile?16: 20,
+                              size: isMobile ? 16 : 20,
                             ),
                             style: TextStyle(
                               color: isDark ? Colors.white : Colors.black,
                               fontWeight: FontWeight.w600,
-                              fontSize:isMobile?11: 14,
+                              fontSize: isMobile ? 11 : 14,
                             ),
                             items: [
-                               DropdownMenuItem<int>(
+                              DropdownMenuItem<int>(
                                 value: 0,
-                                child: Text('All Units',style: TextStyle(fontSize: isMobile?11:14),),
+                                child: Text(
+                                  'All Units',
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 11 : 14,
+                                  ),
+                                ),
                               ),
                               ...List.generate(
                                 (widget.treeData['units'] as num? ?? 1).ceil(),
@@ -609,9 +614,9 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                           ? Colors.white
                                           : Colors.black,
                                     ),
-                                    icon:  Icon(
+                                    icon: Icon(
                                       Icons.keyboard_arrow_down,
-                                      size:isMobile?17: 24,
+                                      size: isMobile ? 17 : 24,
                                     ),
                                     items: List.generate(
                                       (widget.treeData['years'] as num? ?? 10)
@@ -652,7 +657,10 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                 _selectedYear ==
                                     (widget.treeData['startYear'] as int) + 1)
                               Padding(
-                                padding: const EdgeInsets.only(top: 4,bottom: 6),
+                                padding: const EdgeInsets.only(
+                                  top: 4,
+                                  bottom: 6,
+                                ),
                                 child: Text(
                                   'B CPF: Free (July-Dec ${widget.treeData['startYear']})',
                                   style: TextStyle(
@@ -717,116 +725,62 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    if (kIsWeb) {
-                                      _downloadCSV();
-                                    } else {
-                                      _downloadPDF();
-                                    }
-                                  },
-                                  icon: Icon(
-                                    Icons.share,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                  label: Text(
-                                    kIsWeb ? 'Download Excel' : 'Download PDF',
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                     ],
                   ),
                   isMobile
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.blue[900]!.withValues(alpha: 0.3)
-                                    : Colors.blue[50],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
+                      ? SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
                                   color: isDark
-                                      ? Colors.blue[800]!
-                                      : Colors.blue[100]!,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Total Revenue (1st Jan - 31st Dec $_selectedYear)',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    widget.formatCurrency(yearlyUnitTotal),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue[700],
-                                    ),
-                                  ),
-                                  Text(
-                                    'Net: ${widget.formatCurrency(yearlyNetRevenue)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                if (kIsWeb) {
-                                  _downloadCSV();
-                                } else {
-                                  _downloadPDF();
-                                }
-                              },
-                              icon: const Icon(
-                                Icons.share,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                              label: Text("Share",style: TextStyle(fontSize: 10),),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
+                                      ? Colors.blue[900]!.withValues(alpha: 0.3)
+                                      : Colors.blue[50],
                                   borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.blue[800]!
+                                        : Colors.blue[100]!,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Total Revenue (1st Jan - 31st Dec $_selectedYear)',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      widget.formatCurrency(yearlyUnitTotal),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue[700],
+                                      ),
+                                    ),
+                                    Text(
+                                      'Net: ${widget.formatCurrency(yearlyNetRevenue)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green[700],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         )
                       : SizedBox.shrink(),
                 ],
@@ -906,7 +860,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          buffalo['id'] as String,
+                                          buffalo['id'].toString(),
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: Colors.white,
@@ -972,7 +926,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                 double unitTotal = 0;
 
                                 for (final buffalo in unitBuffaloes) {
-                                  final displayId = buffalo['id'] as String;
+                                  final displayId = buffalo['id'].toString();
                                   final revenue =
                                       (widget.monthlyRevenue[_selectedYear
                                               .toString()]?[monthIndex
@@ -1005,7 +959,8 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                       ),
                                     ),
                                     ...unitBuffaloes.map((buffalo) {
-                                      final displayId = buffalo['id'] as String;
+                                      final displayId = buffalo['id']
+                                          .toString();
                                       final revenue =
                                           (widget.monthlyRevenue[_selectedYear
                                                   .toString()]?[monthIndex
@@ -1159,7 +1114,7 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                     ),
                                   ),
                                   ...unitBuffaloes.map((buffalo) {
-                                    final displayId = buffalo['id'] as String;
+                                    final displayId = buffalo['id'].toString();
                                     int yearlyTotal = 0;
                                     for (int month = 0; month < 12; month++) {
                                       final revenue =
@@ -1280,7 +1235,8 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
                                         widget.formatCurrency(
                                           // ((cpfCost['annualCPFCost'] as int) * 10)
                                           //     .toDouble()
-                                          _getTotalCPFCostUntilYear().toDouble(),
+                                          _getTotalCPFCostUntilYear()
+                                              .toDouble(),
                                         ),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
@@ -1367,75 +1323,51 @@ class _MonthlyRevenueBreakWidgetState extends State<MonthlyRevenueBreakWidget> {
             // Summary Cards
             LayoutBuilder(
               builder: (context, constraints) {
-                final isSmall = constraints.maxWidth < 900;
-                final isPhone = constraints.maxWidth < 600;
-
+                final isMobileLayout = constraints.maxWidth < 800;
                 final cards = [
                   _summaryCard(
-                    'Annual Revenue',
-                    widget.formatCurrency(yearlyUnitTotal.toDouble()),
-                    Colors.blue,
-                    '$_selectedYear',
-                    isCompact: isPhone,
-                  ),
-                  _summaryCard(
-                    'Annual CPF Cost',
-                    widget.formatCurrency(
-                      cpfCost['annualCPFCost'].toString().parseDouble(),
-                    ),
-                    Colors.amber,
-                    '${cpfCost['milkProducingBuffaloesWithCPF']} buffaloes × ₹13,000',
-                    isCompact: isPhone,
-                  ),
-                  _summaryCard(
-                    'Net Annual Revenue',
-                    widget.formatCurrency(yearlyNetRevenue.toDouble()),
-                    Colors.green,
-                    '$_selectedYear',
-                    isCompact: isPhone,
-                  ),
-                  _summaryCard(
-                    'Cumulative Net',
-                    widget.formatCurrency(
-                      totalCumulativeUntilYear -
-                          _getTotalCPFCostUntilYear().toDouble(),
-                    ),
+                    "Yearly Net Revenue",
+                    widget.formatCurrency(yearlyNetRevenue),
                     Colors.indigo,
-                    'Until $_selectedYear',
-                    isCompact: isPhone,
+                    "After CPF Deduction",
+                    isCompact: isMobileLayout,
+                  ),
+                  _summaryCard(
+                    "Cumulative Net",
+                    widget.formatCurrency(
+                      totalCumulativeUntilYear - _getTotalCPFCostUntilYear(),
+                    ),
+                    Colors.teal,
+                    "Since Start",
+                    isCompact: isMobileLayout,
+                  ),
+                  _summaryCard(
+                    "Annual CPF Cost",
+                    widget.formatCurrency(
+                      (cpfCost['annualCPFCost'] as num).toDouble(),
+                    ),
+                    Colors.orange,
+                    "${cpfCost['milkProducingBuffaloesWithCPF']} Buffaloes",
+                    isCompact: isMobileLayout,
+                  ),
+                  _summaryCard(
+                    "Monthly Avg Revenue",
+                    widget.formatCurrency(yearlyNetRevenue / 12),
+                    Colors.green,
+                    "Net Income / Month",
+                    isCompact: isMobileLayout,
                   ),
                 ];
 
-                if (isPhone) {
-                  return Column(
-                    children: cards
-                        .map(
-                          (c) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: SizedBox(width: double.infinity, child: c),
-                          ),
-                        )
-                        .toList(),
-                  );
-                } else if (isSmall) {
-                  return Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: cards[0]),
-                          const SizedBox(width: 16),
-                          Expanded(child: cards[1]),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(child: cards[2]),
-                          const SizedBox(width: 16),
-                          Expanded(child: cards[3]),
-                        ],
-                      ),
-                    ],
+                if (isMobileLayout) {
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.4,
+                    children: cards,
                   );
                 } else {
                   return Row(

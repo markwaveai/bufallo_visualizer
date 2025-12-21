@@ -1,3 +1,4 @@
+import 'package:buffalo_visualizer/models/simulation_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // State class to hold all simulation data
@@ -8,6 +9,7 @@ class SimulationState {
   final Map<String, dynamic>? treeData;
   final Map<String, dynamic>? revenueData;
   final bool isLoading;
+  final SimulationConfig? config;
 
   SimulationState({
     required this.units,
@@ -16,6 +18,7 @@ class SimulationState {
     this.treeData,
     this.revenueData,
     this.isLoading = false,
+    this.config,
   });
 
   SimulationState copyWith({
@@ -25,6 +28,7 @@ class SimulationState {
     Map<String, dynamic>? treeData,
     Map<String, dynamic>? revenueData,
     bool? isLoading,
+    SimulationConfig? config,
   }) {
     return SimulationState(
       units: units ?? this.units,
@@ -33,6 +37,7 @@ class SimulationState {
       treeData: treeData ?? this.treeData,
       revenueData: revenueData ?? this.revenueData,
       isLoading: isLoading ?? this.isLoading,
+      config: config ?? this.config,
     );
   }
 }
@@ -46,17 +51,39 @@ final simulationProvider =
 class SimulationNotifier extends Notifier<SimulationState> {
   @override
   SimulationState build() {
+    // Initialize with default/empty state. Logic will load config then run.
     final initialState = SimulationState(
       units: 1.0,
       years: 10,
       startDate: DateTime(2026, 1, 1),
-      isLoading: false,
+      isLoading: true,
     );
 
-    // Auto-run simulation on startup
-    Future.microtask(() => runSimulation());
+    // Load config and start simulation
+    Future.microtask(() => _initializeAndRun());
 
     return initialState;
+  }
+
+  Future<void> _initializeAndRun() async {
+    try {
+      final config = await SimulationConfig.load();
+      state = state.copyWith(
+        config: config,
+        units: config.defaultUnits,
+        years: config.defaultYears,
+        startDate: DateTime(
+          config.defaultStartYear,
+          config.defaultStartMonth,
+          config.defaultStartDay,
+        ),
+      );
+      await runSimulation();
+    } catch (e) {
+      // Fallback or error handling if config fails to load
+      print('Error loading config: $e');
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   void updateSettings({double? units, int? years, DateTime? startDate}) {
@@ -68,46 +95,80 @@ class SimulationNotifier extends Notifier<SimulationState> {
   }
 
   Future<void> reset() async {
-    state = SimulationState(
-      units: 1.0,
-      years: 10,
-      startDate: DateTime(2026, 1, 1),
+    if (state.config == null) return;
+    final config = state.config!;
+
+    state = state.copyWith(
+      units: config.defaultUnits,
+      years: config.defaultYears,
+      startDate: DateTime(
+        config.defaultStartYear,
+        config.defaultStartMonth,
+        config.defaultStartDay,
+      ),
       treeData: null,
       revenueData: null,
+      isLoading: true,
     );
     await runSimulation();
   }
 
-  // Revenue configuration
-  final Map<String, dynamic> revenueConfig = {
-    'landingPeriod': 2,
-    'highRevenuePhase': {'months': 5, 'revenue': 9000},
-    'mediumRevenuePhase': {'months': 3, 'revenue': 6000},
-    'restPeriod': {'months': 4, 'revenue': 0},
-  };
+  // Revenue configuration (Now derived from config for UI if needed, but logic uses config directly)
+  Map<String, dynamic> get revenueConfig {
+    if (state.config == null) return {};
+    return {
+      'landingPeriod':
+          2, // This seems to be structural logic not in basic config yet
+      'highRevenuePhase': {
+        'months': state.config!.revenuePhases['high']?.months ?? 5,
+        'revenue': state.config!.revenuePhases['high']?.monthlyRevenue ?? 9000,
+      },
+      'mediumRevenuePhase': {
+        'months': state.config!.revenuePhases['medium']?.months ?? 3,
+        'revenue':
+            state.config!.revenuePhases['medium']?.monthlyRevenue ?? 6000,
+      },
+      'restPeriod': {
+        'months': state.config!.revenuePhases['rest']?.months ?? 4,
+        'revenue': state.config!.revenuePhases['rest']?.monthlyRevenue ?? 0,
+      },
+    };
+  }
 
-  // Calculate monthly revenue for EACH buffalo based on its individual cycle (Match CostEstimationTable logic)
+  // Calculate monthly revenue for EACH buffalo based on its individual cycle
   int _calculateMonthlyRevenueForBuffalo(
     int birthYear,
     int birthMonth,
     int currentYear,
     int currentMonth,
   ) {
+    if (state.config == null) return 0;
+    final config = state.config!;
+
     // Calculate age in months
     final ageInMonths =
         ((currentYear - birthYear) * 12) + (currentMonth - birthMonth);
 
-    // Start Milking at Age 38
-    if (ageInMonths < 38) {
+    // Start Milking
+    if (ageInMonths < config.milkingStartAgeMonths) {
       return 0;
     }
 
-    final productionMonth = ageInMonths - 38;
+    final productionMonth = ageInMonths - config.milkingStartAgeMonths;
     final cycleMonth = productionMonth % 12;
 
-    if (cycleMonth < 5) return 9000;
-    if (cycleMonth < 8) return 6000;
-    return 0;
+    // Dynamic phase logic
+    // We assume the standard sequence: High -> Medium -> Rest -> (Loop)
+    final highMonths = config.revenuePhases['high']?.months ?? 5;
+    final mediumMonths = config.revenuePhases['medium']?.months ?? 3;
+
+    if (cycleMonth < highMonths) {
+      return (config.revenuePhases['high']?.monthlyRevenue ?? 9000).toInt();
+    } else if (cycleMonth < (highMonths + mediumMonths)) {
+      return (config.revenuePhases['medium']?.monthlyRevenue ?? 6000).toInt();
+    }
+
+    return (config.revenuePhases['rest']?.monthlyRevenue ?? 0).toInt();
   }
 
   // Calculate annual revenue for ALL mature buffaloes with individual cycles
@@ -233,8 +294,11 @@ class SimulationNotifier extends Notifier<SimulationState> {
     int startMonth,
     int totalYears,
   ) {
+    if (state.config == null) return 0;
+    final config = state.config!;
+
     double totalCPF = 0;
-    const double cpfPerMonth = 13000 / 12;
+    final double cpfPerMonth = config.cpfMonthlyCost;
 
     for (int year = startYear; year < startYear + totalYears; year++) {
       for (int month = 0; month < 12; month++) {
@@ -255,19 +319,32 @@ class SimulationNotifier extends Notifier<SimulationState> {
               isCpfApplicable = true;
             } else {
               // Type B: Free Period (First 12 months from acquisition)
-              final isFreePeriod =
-                  ((year == startYear && month >= 6) ||
-                  (year == startYear + 1 && month <= 5));
+              // Assuming batch gap logic from config or standard logic
+              // Current logic uses hardcoded year checks, let's keep it safe but adaptable
 
-              if (!isFreePeriod) {
+              // Standard logic: Free period is first 12 months for Type B (acquired later)
+              // We need to calculate months since acquisition
+              final monthsSinceAcq =
+                  ((year - startYear) * 12) + (month - acquisitionMonth);
+
+              // If it's Type B (acquired later than start), first 12 months free?
+              // The original code Logic:
+              // ((year == startYear && month >= 6) || (year == startYear + 1 && month <= 5))
+              // This implies Start=Jan (0), Type B Acq=July (6).
+              // So from Month 6 Year 0 to Month 5 Year 1 is 12 months.
+
+              if (monthsSinceAcq >= 12) {
+                isCpfApplicable = true;
+              } else if (acquisitionMonth == startMonth) {
+                // Should be Type A logic path, but safeguards
                 isCpfApplicable = true;
               }
             }
           } else {
-            // Child: Age >= 36 months
+            // Child: Age >= threshold
             final ageInMonths =
                 ((year - birthYear) * 12) + (month - birthMonth);
-            if (ageInMonths >= 36) {
+            if (ageInMonths >= config.cpfAgeThresholdMonths) {
               isCpfApplicable = true;
             }
           }
@@ -282,6 +359,14 @@ class SimulationNotifier extends Notifier<SimulationState> {
   }
 
   Future<void> runSimulation() async {
+    if (state.config == null) {
+      // Try initializing if not ready
+      await _initializeAndRun();
+      return;
+    }
+
+    final config = state.config!;
+
     // Note: state = ... triggers a rebuild.
     state = state.copyWith(isLoading: true, treeData: null, revenueData: null);
 
@@ -301,11 +386,11 @@ class SimulationNotifier extends Notifier<SimulationState> {
       // Mother A
       herd.add({
         'id': motherAId,
-        'age': 5,
+        'age': config.motherAgeYears,
         'mature': true,
         'parentId': null,
         'generation': 0,
-        'birthYear': state.startDate.year - 5,
+        'birthYear': state.startDate.year - config.motherAgeYears,
         'birthMonth': batchAMonth,
         'acquisitionMonth': batchAMonth,
         'unit': u + 1,
@@ -324,20 +409,21 @@ class SimulationNotifier extends Notifier<SimulationState> {
         'unit': u + 1,
       });
 
-      // --- Batch B (July / 6 Months later) ---
-      // Only create if units is whole number or handling partial
+      // --- Batch B ---
+      // Apply Gap from Config
       if (state.units >= 1) {
-        final batchBMonth = (batchAMonth + 6) % 12; // 6 month gap
+        final batchBMonth =
+            (batchAMonth + config.initialBuffaloesPerUnit.batchGapMonths) % 12;
         final motherBId = nextId++;
 
         // Mother B
         herd.add({
           'id': motherBId,
-          'age': 5,
+          'age': config.motherAgeYears,
           'mature': true,
           'parentId': null,
           'generation': 0,
-          'birthYear': state.startDate.year - 5,
+          'birthYear': state.startDate.year - config.motherAgeYears,
           'birthMonth': batchBMonth,
           'acquisitionMonth': batchBMonth,
           'unit': u + 1,
@@ -363,10 +449,11 @@ class SimulationNotifier extends Notifier<SimulationState> {
       final currentYear = state.startDate.year + (year - 1);
 
       // Breeding:
-      // Skip breeding in Year 1 because we manually placed the "Year 1 Offspring" (Child A/B)
-      // along with the mothers at the start.
+      // Skip breeding in Year 1 because we manually placed the "Year 1 Offspring"
       if (year > 1) {
-        final matureBuffaloes = herd.where((b) => b['age'] >= 3).toList();
+        final matureBuffaloes = herd
+            .where((b) => b['age'] >= config.maturityAgeYears)
+            .toList();
 
         // All offspring are female (AI Injections) and retained
         for (final parent in matureBuffaloes) {
@@ -387,7 +474,7 @@ class SimulationNotifier extends Notifier<SimulationState> {
       // Age all buffaloes
       for (final b in herd) {
         b['age']++;
-        if (b['age'] >= 3) b['mature'] = true;
+        if (b['age'] >= config.maturityAgeYears) b['mature'] = true;
       }
     }
 
@@ -395,7 +482,7 @@ class SimulationNotifier extends Notifier<SimulationState> {
     final calculatedRevenueData = _calculateRevenueData(
       herd,
       state.startDate.year,
-      state.startDate.month - 1, // Convert to 0-based
+      state.startDate.month - 1,
       totalYears,
     );
 

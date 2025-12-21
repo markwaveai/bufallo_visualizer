@@ -5,12 +5,15 @@ import 'package:buffalo_visualizer/buffalo_tree/utils/dimensions.dart';
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' show Vector3, Matrix4;
 
+enum TreeOrientation { vertical, horizontal }
+
 class OrganizationTreeWidget extends StatefulWidget {
   final BuffaloNode rootNode;
   final Function(String nodeId)? onNodeTap;
   final TreeTheme theme;
   final NodeShape nodeShape;
   final Function(TransformationController)? onControllerReady;
+  final TreeOrientation orientation;
 
   const OrganizationTreeWidget({
     super.key,
@@ -19,6 +22,7 @@ class OrganizationTreeWidget extends StatefulWidget {
     this.theme = TreeTheme.vibrantGradients,
     this.nodeShape = NodeShape.roundedRectangle,
     this.onControllerReady,
+    this.orientation = TreeOrientation.vertical,
   });
 
   @override
@@ -41,6 +45,10 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
   void initState() {
     super.initState();
     _calculateLayout();
+
+    // Initial zoom out (0.6x)
+    _transformationController.value = Matrix4.identity()..scale(0.6);
+
     // Expose the transformation controller to parent
     widget.onControllerReady?.call(_transformationController);
   }
@@ -48,7 +56,8 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
   @override
   void didUpdateWidget(OrganizationTreeWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.rootNode != widget.rootNode) {
+    if (oldWidget.rootNode != widget.rootNode ||
+        oldWidget.orientation != widget.orientation) {
       _calculateLayout();
     }
   }
@@ -87,6 +96,13 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
     BuffaloNode node,
     Map<String, TreeDimensions> cache,
   ) {
+    final nodeWidth = widget.orientation == TreeOrientation.horizontal
+        ? 110.0
+        : Dimensions.nodeWidth;
+    final nodeHeight = widget.orientation == TreeOrientation.horizontal
+        ? 50.0
+        : Dimensions.nodeHeight;
+
     List<BuffaloNode> stack = [node];
     List<BuffaloNode> processed = [];
 
@@ -112,37 +128,67 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
     for (var currentNode in processed) {
       if (currentNode.children.isEmpty) {
         cache[currentNode.id] = TreeDimensions(
-          width: Dimensions.nodeWidth,
-          height: Dimensions.nodeHeight,
+          width: nodeWidth,
+          height: nodeHeight,
         );
       } else {
-        double totalWidth = 0;
-        double maxHeight = Dimensions.nodeHeight;
+        if (widget.orientation == TreeOrientation.vertical) {
+          // Vertical (Top-Down) Logic
+          double totalWidth = 0;
+          double maxHeight = nodeHeight;
 
-        for (var child in currentNode.children) {
-          final childDim = cache[child.id]!;
-          totalWidth += childDim.width + Dimensions.siblingSpacing;
+          for (var child in currentNode.children) {
+            final childDim = cache[child.id]!;
+            totalWidth += childDim.width + Dimensions.siblingSpacing;
 
-          double childTreeHeight =
-              Dimensions.nodeHeight + Dimensions.levelSpacing + childDim.height;
-          if (childTreeHeight > maxHeight) {
-            maxHeight = childTreeHeight;
+            double childTreeHeight =
+                nodeHeight + Dimensions.levelSpacing + childDim.height;
+            if (childTreeHeight > maxHeight) {
+              maxHeight = childTreeHeight;
+            }
           }
+
+          totalWidth -= Dimensions.siblingSpacing;
+
+          cache[currentNode.id] = TreeDimensions(
+            width: totalWidth > nodeWidth ? totalWidth : nodeWidth,
+            height: maxHeight,
+          );
+        } else {
+          // Horizontal (Left-Right) Logic
+          double totalHeight = 0;
+          double maxWidth = nodeWidth;
+
+          for (var child in currentNode.children) {
+            final childDim = cache[child.id]!;
+            totalHeight += childDim.height + Dimensions.siblingSpacing;
+
+            double childTreeWidth =
+                nodeWidth + Dimensions.levelSpacing + childDim.width;
+            if (childTreeWidth > maxWidth) {
+              maxWidth = childTreeWidth;
+            }
+          }
+
+          totalHeight -= Dimensions.siblingSpacing;
+
+          cache[currentNode.id] = TreeDimensions(
+            width: maxWidth,
+            height: totalHeight > nodeHeight ? totalHeight : nodeHeight,
+          );
         }
-
-        totalWidth -= Dimensions.siblingSpacing;
-
-        cache[currentNode.id] = TreeDimensions(
-          width: totalWidth > Dimensions.nodeWidth
-              ? totalWidth
-              : Dimensions.nodeWidth,
-          height: maxHeight,
-        );
       }
     }
   }
 
   void _positionNodes(BuffaloNode node, double x, double y, int level) {
+    final nodeWidth = widget.orientation == TreeOrientation.horizontal
+        ? 110.0
+        : Dimensions.nodeWidth;
+    final nodeHeight = widget.orientation == TreeOrientation.horizontal
+        ? 50.0
+        : Dimensions.nodeHeight;
+
     List<_NodePositionInfo> queue = [
       _NodePositionInfo(node: node, x: x, y: y, level: level),
     ];
@@ -159,52 +205,103 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
         PositionedNode(
           node: currentNode,
           position: position,
-          size: const Size(Dimensions.nodeWidth, Dimensions.nodeHeight),
+          size: Size(nodeWidth, nodeHeight),
         ),
       );
 
       if (currentNode.children.isNotEmpty) {
-        final childY =
-            currentY + Dimensions.nodeHeight + Dimensions.levelSpacing;
+        if (widget.orientation == TreeOrientation.vertical) {
+          // Vertical Layout
+          final childY = currentY + nodeHeight + Dimensions.levelSpacing;
 
-        double totalChildrenWidth = 0;
-        for (var child in currentNode.children) {
-          final childDim = _calculateTreeDimensions(child);
-          totalChildrenWidth += childDim.width + Dimensions.siblingSpacing;
-        }
-        totalChildrenWidth -= Dimensions.siblingSpacing;
+          double totalChildrenWidth = 0;
+          for (var child in currentNode.children) {
+            final childDim = _calculateTreeDimensions(child);
+            totalChildrenWidth += childDim.width + Dimensions.siblingSpacing;
+          }
+          totalChildrenWidth -= Dimensions.siblingSpacing;
 
-        double childStartX =
-            currentX + (Dimensions.nodeWidth / 2) - (totalChildrenWidth / 2);
+          double childStartX =
+              currentX + (nodeWidth / 2) - (totalChildrenWidth / 2);
 
-        for (var child in currentNode.children) {
-          final childDim = _calculateTreeDimensions(child);
+          for (var child in currentNode.children) {
+            final childDim = _calculateTreeDimensions(child);
 
-          final childNodeX =
-              childStartX + (childDim.width / 2) - (Dimensions.nodeWidth / 2);
+            final childNodeX =
+                childStartX + (childDim.width / 2) - (nodeWidth / 2);
 
-          final childConnectionX = childNodeX + (Dimensions.nodeWidth / 2);
+            final childConnectionX = childNodeX + (nodeWidth / 2);
 
-          connections.add(
-            ConnectionLine(
-              start: Offset(
-                currentX + Dimensions.nodeWidth / 2,
-                currentY + Dimensions.nodeHeight,
+            connections.add(
+              ConnectionLine(
+                start: Offset(currentX + nodeWidth / 2, currentY + nodeHeight),
+                end: Offset(childConnectionX, childY),
               ),
-              end: Offset(childConnectionX, childY),
-            ),
-          );
+            );
 
-          queue.add(
-            _NodePositionInfo(
-              node: child,
-              x: childNodeX,
-              y: childY,
-              level: currentLevel + 1,
-            ),
-          );
+            queue.add(
+              _NodePositionInfo(
+                node: child,
+                x: childNodeX,
+                y: childY,
+                level: currentLevel + 1,
+              ),
+            );
 
-          childStartX += childDim.width + Dimensions.siblingSpacing;
+            childStartX += childDim.width + Dimensions.siblingSpacing;
+          }
+        } else {
+          // Horizontal Layout
+          final childX = currentX + nodeWidth + Dimensions.levelSpacing;
+
+          double totalChildrenHeight = 0;
+          for (var child in currentNode.children) {
+            final childDim = _calculateTreeDimensions(child);
+            totalChildrenHeight += childDim.height + Dimensions.siblingSpacing;
+          }
+          totalChildrenHeight -= Dimensions.siblingSpacing;
+
+          // Center children vertically relative to parent
+          double childStartY =
+              currentY + (nodeHeight / 2) - (totalChildrenHeight / 2);
+
+          for (var child in currentNode.children) {
+            final childDim = _calculateTreeDimensions(child);
+
+            // The child's "height" is the height of its entire subtree.
+            // We place the child node centered within that subtree height.
+            // But wait, our drawing logic assumes (x,y) is top-left of node.
+            // If we just stack them, it's easier.
+
+            // Let's optimize visual alignment:
+            // The slot for this child tree starts at childStartY.
+            // It has height childDim.height.
+            // We want to place the child node such that it is vertically centered in this slot.
+            // childNodeY = childStartY + (childDim.height / 2) - (nodeHeight / 2)
+
+            final childNodeY =
+                childStartY + (childDim.height / 2) - (nodeHeight / 2);
+
+            final childConnectionY = childNodeY + (nodeHeight / 2);
+
+            connections.add(
+              ConnectionLine(
+                start: Offset(currentX + nodeWidth, currentY + nodeHeight / 2),
+                end: Offset(childX, childConnectionY),
+              ),
+            );
+
+            queue.add(
+              _NodePositionInfo(
+                node: child,
+                x: childX,
+                y: childNodeY,
+                level: currentLevel + 1,
+              ),
+            );
+
+            childStartY += childDim.height + Dimensions.siblingSpacing;
+          }
         }
       }
     }
@@ -227,8 +324,24 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
             ? canvasSize.height
             : constraints.maxHeight;
 
-        final rootX = (effectiveWidth / 2) - (Dimensions.nodeWidth / 2);
-        const rootY = Dimensions.screenPadding;
+        final nodeWidth = widget.orientation == TreeOrientation.horizontal
+            ? 110.0
+            : Dimensions.nodeWidth;
+        final nodeHeight = widget.orientation == TreeOrientation.horizontal
+            ? 50.0
+            : Dimensions.nodeHeight;
+
+        double rootX;
+        double rootY;
+
+        if (widget.orientation == TreeOrientation.vertical) {
+          rootX = (effectiveWidth / 2) - (nodeWidth / 2);
+          rootY = Dimensions.screenPadding;
+        } else {
+          // Horizontal: Start from left, vertically centered
+          rootX = Dimensions.screenPadding;
+          rootY = (effectiveHeight / 2) - (nodeHeight / 2);
+        }
 
         if (_lastRootX != rootX || _lastRootY != rootY) {
           _positionNodesWithStart(rootX, rootY);
@@ -271,6 +384,7 @@ class _OrganizationTreeWidgetState extends State<OrganizationTreeWidget> {
                         hoveredNodeId: hoveredNodeId,
                         themeData: TreeThemeData.getTheme(widget.theme),
                         nodeShape: widget.nodeShape,
+                        orientation: widget.orientation,
                       ),
                       foregroundPainter: _NodeTextPainter(
                         positionedNodes: positionedNodes,
@@ -622,6 +736,7 @@ class BuffaloTreeCanvasPainter extends CustomPainter {
   final String? hoveredNodeId;
   final TreeThemeData themeData;
   final NodeShape nodeShape;
+  final TreeOrientation orientation;
 
   BuffaloTreeCanvasPainter({
     required this.positionedNodes,
@@ -629,6 +744,7 @@ class BuffaloTreeCanvasPainter extends CustomPainter {
     this.hoveredNodeId,
     required this.themeData,
     required this.nodeShape,
+    required this.orientation,
   });
 
   @override
@@ -673,18 +789,33 @@ class BuffaloTreeCanvasPainter extends CustomPainter {
   }
 
   Path _smoothCurve(Offset start, Offset end) {
-    final midY = (start.dy + end.dy) / 2;
-
-    return Path()
-      ..moveTo(start.dx, start.dy)
-      ..cubicTo(
-        start.dx,
-        midY, // control 1
-        end.dx,
-        midY, // control 2
-        end.dx,
-        end.dy, // end
-      );
+    if (orientation == TreeOrientation.vertical) {
+      // Vertical (Curved Top-Down)
+      final midY = (start.dy + end.dy) / 2;
+      return Path()
+        ..moveTo(start.dx, start.dy)
+        ..cubicTo(
+          start.dx,
+          midY, // control 1
+          end.dx,
+          midY, // control 2
+          end.dx,
+          end.dy, // end
+        );
+    } else {
+      // Horizontal (Curved Left-Right)
+      final midX = (start.dx + end.dx) / 2;
+      return Path()
+        ..moveTo(start.dx, start.dy)
+        ..cubicTo(
+          midX,
+          start.dy, // control 1
+          midX,
+          end.dy, // control 2
+          end.dx,
+          end.dy, // end
+        );
+    }
   }
 
   // Offset _curveDirection(Path path) {

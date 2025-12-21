@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 class Dimensions {
   // Tree dimensions
-  static const double nodeWidth = 100.0;
-  static const double nodeHeight = 45.0;
-  static const double siblingSpacing = 10.0;
-  static const double levelSpacing = 40.0;
+  static const double nodeWidth = 140.0;
+  static const double nodeHeight = 60.0;
+  static const double siblingSpacing = 25.0;
+  static const double levelSpacing = 70.0;
 
   // Padding and margins
   static const double screenPadding = 16.0;

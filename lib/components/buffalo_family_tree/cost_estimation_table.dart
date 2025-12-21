@@ -1,3 +1,4 @@
+import 'package:buffalo_visualizer/models/simulation_config.dart';
 import 'package:flutter/material.dart';
 
 import 'package:intl/intl.dart';
@@ -13,14 +14,16 @@ class CostEstimationTable extends StatefulWidget {
   final Map<String, dynamic> treeData;
   final Map<String, dynamic> revenueData;
 
+  final bool isEmbedded;
+  final SimulationConfig? config;
+
   const CostEstimationTable({
     Key? key,
     required this.treeData,
     required this.revenueData,
     this.isEmbedded = false,
+    this.config,
   }) : super(key: key);
-
-  final bool isEmbedded;
 
   @override
   State<CostEstimationTable> createState() => _CostEstimationTableState();
@@ -60,6 +63,7 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
   Map<String, dynamic> _buffaloDetails = {};
   Map<String, Map<String, Map<String, dynamic>>> _monthlyRevenue = {};
   Map<String, Map<String, double>> _investorMonthlyRevenue = {};
+  bool _includeCPF = true; // Default to TRUE (Included)
 
   @override
   void initState() {
@@ -281,12 +285,14 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
       final monthsSinceAcquisition =
           (currentYear - startYear) * 12 + (currentMonth - acquisitionMonth);
 
-      // Purchase Month (0) + Landing Month (1) = 2 months of no revenue
-      if (monthsSinceAcquisition < 2) {
+      // Purchase Month (0) + Landing Month (1) + ... = Delay
+      final delay =
+          widget.config?.initialBuffaloesPerUnit.revenueStartDelayMonths ?? 2;
+      if (monthsSinceAcquisition < delay) {
         return 0;
       }
 
-      final productionMonth = monthsSinceAcquisition - 2;
+      final productionMonth = monthsSinceAcquisition - delay;
       final cycleMonth = productionMonth % 12;
 
       if (cycleMonth < 5) return 9000;
@@ -414,17 +420,18 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
   // Calculate initial investment
   Map<String, dynamic> calculateInitialInvestment() {
     final num units = widget.treeData['units'] ?? 0;
-    final int buffaloPrice = 175000;
-    final int cpfPerBuffalo = 13000;
+    // Use config if available, else fallback
+    final int buffaloPrice =
+        widget.config?.initialBuffaloesPerUnit.buffaloPrice.toInt() ?? 175000;
+    final int cpfPerUnitInitial =
+        widget.config?.initialBuffaloesPerUnit.cpfPerUnitInitial.toInt() ??
+        13000;
 
     // Consider Total Buffaloes (Mothers)
     final int totalBuffaloes = (units * 2).round();
 
     final buffaloCost = totalBuffaloes * buffaloPrice;
-    // Fix: CPF Cost is per UNIT (covering 2 buffaloes per unit logic, or accounting for free period)
-    // User requested Total Initial Investment to be 363,000 for 1 Unit.
-    // 350,000 (Buffaloes) + 13,000 (CPF) = 363,000.
-    final cpfCost = (units * cpfPerBuffalo).round();
+    final cpfCost = (units * cpfPerUnitInitial).round();
     final totalInvestment = buffaloCost + cpfCost;
 
     return {
@@ -434,8 +441,19 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
     };
   }
 
-  // Get buffalo market value based on age in months (match React SharedCalculations)
+  // Get buffalo market value based on age in months (match Real Config)
   int getBuffaloValueByAge(int ageInMonths) {
+    if (widget.config?.assetValues != null) {
+      // Iterate through sorted keys (descending) to find match
+      final sortedKeys = widget.config!.assetValues.keys.toList()
+        ..sort((a, b) => b.compareTo(a));
+      for (final threshold in sortedKeys) {
+        if (ageInMonths >= threshold) {
+          return widget.config!.assetValues[threshold]!.toInt();
+        }
+      }
+    }
+    // Fallback
     if (ageInMonths >= 60) return 175000;
     if (ageInMonths >= 48) return 150000;
     if (ageInMonths >= 40) return 100000;
@@ -1076,66 +1094,274 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Wrap(
-        spacing: isMobile ? 8 : 12,
-        runSpacing: isMobile ? 8 : 12,
-        alignment: WrapAlignment.center,
-        children: sections.map((s) {
-          final isSelected = selectedSection == s['key'];
-          return InkWell(
-            onTap: () =>
-                setState(() => selectedSection = isSelected ? 'all' : s['key']),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 12 : 18,
-                vertical: isMobile ? 8 : 12,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? (s['color'] as Color).withOpacity(0.85)
-                    : (isDark ? Colors.grey[800] : Colors.white),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: (s['color'] as Color).withOpacity(0.9),
-                  width: 1.5,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Wrap(
+            spacing: isMobile ? 8 : 12,
+            runSpacing: isMobile ? 8 : 12,
+            alignment: WrapAlignment.center,
+            children: sections.map((s) {
+              final isSelected = selectedSection == s['key'];
+              return InkWell(
+                onTap: () => setState(
+                  () => selectedSection = isSelected ? 'all' : s['key'],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 8,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 12 : 18,
+                    vertical: isMobile ? 8 : 12,
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: isMobile ? 8 : 10,
-                    height: isMobile ? 8 : 10,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.white : s['color'] as Color,
-                      shape: BoxShape.circle,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? (s['color'] as Color).withOpacity(0.85)
+                        : (isDark ? Colors.grey[800] : Colors.white),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: (s['color'] as Color).withOpacity(0.9),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    s['label'],
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.grey[200] : Colors.black87),
-                      fontWeight: FontWeight.w600,
-                      fontSize: isMobile ? 12 : 14,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: isMobile ? 8 : 10,
+                        height: isMobile ? 8 : 10,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white
+                              : s['color'] as Color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        s['label'],
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? Colors.grey[200] : Colors.black87),
+                          fontWeight: FontWeight.w600,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        // CPF Toggle and Stats Row
+        if (selectedSection == 'all' ||
+            selectedSection == 'staggered_schedule' ||
+            selectedSection == 'revenue_breakdown')
+          Builder(
+            builder: (context) {
+              // Calculate Stats
+              final totalRevenue =
+                  (widget.revenueData['totalRevenue'] as num?)?.toDouble() ??
+                  0.0;
+
+              final cpfByYear = calculateYearlyCPFCost();
+              final totalCPF = cpfByYear.values.fold(
+                0,
+                (sum, val) => sum + val,
+              );
+
+              final netRevenue = _includeCPF
+                  ? (totalRevenue - totalCPF)
+                  : totalRevenue;
+
+              final assetMarketValues = calculateAssetMarketValue();
+              final totalAssetValue = assetMarketValues.isNotEmpty
+                  ? (assetMarketValues.last['totalAssetValue'] as num?)
+                            ?.toDouble() ??
+                        0.0
+                  : 0.0;
+
+              final roi = netRevenue + totalAssetValue;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 24, top: 8),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 24,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
+                  ],
+                  border: Border.all(
+                    color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
                   ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+                ),
+                child: isMobile
+                    ? Column(
+                        children: [
+                          // Toggle Mobile
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'CGF INCLUDED',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Switch(
+                                  value: _includeCPF,
+                                  onChanged: (val) =>
+                                      setState(() => _includeCPF = val),
+                                  activeColor: Colors.tealAccent,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 32),
+                          Wrap(
+                            spacing: 24,
+                            runSpacing: 24,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildDashboardStat(
+                                'CUMULATIVE NET (WITH CGF)',
+                                formatCurrency(netRevenue),
+                                const Color(0xFF00BFA5),
+                                isMobile,
+                                isDark,
+                              ),
+                              _buildDashboardStat(
+                                'TOTAL ASSET VALUE',
+                                formatCurrency(totalAssetValue),
+                                const Color(0xFF2979FF),
+                                isMobile,
+                                isDark,
+                              ),
+                              _buildDashboardStat(
+                                'ROI (NET + ASSETS)',
+                                formatCurrency(roi),
+                                const Color(0xFF6200EA),
+                                isMobile,
+                                isDark,
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Row(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'CGF INCLUDED',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                      fontSize: 12,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _includeCPF ? 'ON' : 'OFF',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Transform.scale(
+                                        scale: 0.8,
+                                        child: Switch(
+                                          value: _includeCPF,
+                                          onChanged: (val) =>
+                                              setState(() => _includeCPF = val),
+                                          activeColor: Colors.tealAccent,
+                                          activeTrackColor: Colors.teal
+                                              .withOpacity(0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: isDark ? Colors.grey[700] : Colors.grey[300],
+                          ),
+                          _buildDashboardStat(
+                            'CUMULATIVE NET (WITH CGF)',
+                            formatCurrency(netRevenue),
+                            const Color(0xFF00BFA5),
+                            isMobile,
+                            isDark,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: isDark ? Colors.grey[700] : Colors.grey[300],
+                          ),
+                          _buildDashboardStat(
+                            'TOTAL ASSET VALUE',
+                            formatCurrency(totalAssetValue),
+                            const Color(0xFF2979FF),
+                            isMobile,
+                            isDark,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: isDark ? Colors.grey[700] : Colors.grey[300],
+                          ),
+                          _buildDashboardStat(
+                            'ROI (NET + ASSETS)',
+                            formatCurrency(roi),
+                            const Color(0xFF6200EA),
+                            isMobile,
+                            isDark,
+                          ),
+                        ],
+                      ),
+              );
+            },
+          ),
+      ],
     );
   }
 
@@ -1250,6 +1476,7 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
                     monthNames: _monthNames,
                     formatCurrency: formatCurrency,
                     formatNumber: formatNumber,
+                    includeCPF: _includeCPF, // Pass toggle
                   ),
                   const SizedBox(height: 40),
                 ],
@@ -1373,6 +1600,39 @@ class _CostEstimationTableState extends State<CostEstimationTable> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDashboardStat(
+    String label,
+    String value,
+    Color color,
+    bool isMobile,
+    bool isDark,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isMobile ? 10 : 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+            color: isDark ? Colors.grey[400] : Colors.grey[600],
+          ),
+        ), // Uppercase Label
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isMobile ? 18 : 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

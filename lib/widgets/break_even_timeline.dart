@@ -11,6 +11,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
   final List<String> monthNames;
   final String Function(double) formatCurrency;
   final String Function(int) formatNumber;
+  final bool includeCPF;
 
   const BreakEvenTimelineWidget({
     Key? key,
@@ -19,6 +20,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
     required this.monthNames,
     required this.formatCurrency,
     required this.formatNumber,
+    this.includeCPF = true,
   }) : super(key: key);
 
   String _formatDate(DateTime? date) {
@@ -29,54 +31,41 @@ class BreakEvenTimelineWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Break-even analysis data
-    final exactBreakEvenDateWithCPF =
-        breakEvenAnalysis['exactBreakEvenDateWithCPF'] as DateTime?;
-    final breakEvenMonthWithCPF =
-        breakEvenAnalysis['breakEvenMonthWithCPF'] as int? ?? 0;
-    final finalCumulativeRevenueWithCPF =
-        breakEvenAnalysis['finalCumulativeRevenueWithCPF'] ?? 0.0;
+    // Select correct keys based on toggle
+    final exactBreakEvenDate = includeCPF
+        ? breakEvenAnalysis['exactBreakEvenDateWithCPF'] as DateTime?
+        : breakEvenAnalysis['exactBreakEvenDateWithoutCPF']
+              as DateTime?; // Note: WithoutCPF key needs to exist
+
+    final breakEvenMonth = includeCPF
+        ? breakEvenAnalysis['breakEvenMonthWithCPF'] as int? ?? 0
+        : breakEvenAnalysis['breakEvenMonthWithoutCPF'] as int? ?? 0;
+
+    final breakEvenYear = includeCPF
+        ? breakEvenAnalysis['breakEvenYearWithCPF'] as int?
+        : breakEvenAnalysis['breakEvenYearWithoutCPF'] as int?;
+
+    final finalCumulativeRevenue = includeCPF
+        ? breakEvenAnalysis['finalCumulativeRevenueWithCPF'] ?? 0.0
+        : breakEvenAnalysis['finalCumulativeRevenueWithoutCPF'] ?? 0.0;
+
+    // ALIASES for backward compatibility with existing UI code
+    final exactBreakEvenDateWithCPF = exactBreakEvenDate;
+    final breakEvenMonthWithCPF = breakEvenMonth;
+    final breakEvenYearWithCPF = breakEvenYear;
+    final finalCumulativeRevenueWithCPF = finalCumulativeRevenue;
+
     final initialInvestment = breakEvenAnalysis['initialInvestment'] ?? 0;
     final breakEvenData =
         breakEvenAnalysis['breakEvenData'] as List<dynamic>? ?? [];
-
-    final breakEvenYearWithCPF =
-        breakEvenAnalysis['breakEvenYearWithCPF'] as int?;
 
     // Tree data for calculation
     final startYear = treeData['startYear'] ?? DateTime.now().year;
     final startMonth = treeData['startMonth'] ?? 0;
 
     // Calculate months to break-even (Total Duration)
-    // Formula: (Diff Years * 12) + (Diff Months) + 1 (to make it 1-based count)
-    final monthsToBreakEven = (breakEvenYearWithCPF != null)
-        ? ((breakEvenYearWithCPF - startYear) * 12) +
-              (breakEvenMonthWithCPF - startMonth) +
-              1
-        : 0;
-
-    // Calculate totals for footer
-    final totalAnnualRevenue = breakEvenData.fold<double>(
-      0.0,
-      (sum, data) =>
-          sum +
-          ((data as Map<String, dynamic>)['annualRevenueWithCPF'] as num)
-              .toDouble(),
-    );
-
-    final totalCPFCost = breakEvenData.fold<double>(
-      0.0,
-      (sum, data) =>
-          sum + ((data as Map<String, dynamic>)['cpfCost'] as num).toDouble(),
-    );
-
-    final finalAssetValue = breakEvenData.isNotEmpty
-        ? (breakEvenData.last as Map<String, dynamic>)['assetValue'] as num
-        : 0;
-
-    final totalValue =
-        finalCumulativeRevenueWithCPF + finalAssetValue.toDouble();
-    final roiPercentage = initialInvestment > 0
-        ? (totalValue / initialInvestment) * 100
+    final monthsToBreakEven = (breakEvenYear != null)
+        ? ((breakEvenYear - startYear) * 12) + (breakEvenMonth - startMonth) + 1
         : 0;
 
     final startDay = treeData['startDay'] ?? 1;
@@ -112,7 +101,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: EdgeInsets.all(isMobile ?10 : 40),
+            padding: EdgeInsets.all(isMobile ? 10 : 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -176,7 +165,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                             ),
                           ],
                         ),
-                        padding:  EdgeInsets.all(20),
+                        padding: EdgeInsets.all(20),
                         child: Column(
                           children: [
                             Text(
@@ -893,32 +882,6 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                         exactBreakEvenDateWithCPF: exactBreakEvenDateWithCPF,
                         context: context,
                       ),
-                      // Table Footer
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [Colors.grey[900]!, Colors.grey[800]!],
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: _buildTableFooter(
-                            totalAnnualRevenue: totalAnnualRevenue,
-                            totalCPFCost: totalCPFCost,
-                            finalCumulativeRevenue:
-                                finalCumulativeRevenueWithCPF,
-                            finalAssetValue: finalAssetValue.toDouble(),
-                            totalValue: totalValue,
-                            roiPercentage: roiPercentage,
-                            initialInvestment: initialInvestment.toDouble(),
-                            isSmallScreen: isSmallScreen,
-                            isMobile: isMobile,
-                            context: context,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1140,139 +1103,6 @@ class BreakEvenTimelineWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTableFooter({
-    required double totalAnnualRevenue,
-    required double totalCPFCost,
-    required double finalCumulativeRevenue,
-    required double finalAssetValue,
-    required double totalValue,
-    required double roiPercentage,
-    required double initialInvestment,
-    required bool isSmallScreen,
-    bool isMobile = false,
-    required BuildContext context,
-  }) {
-    final children = [
-      _buildFooterItem(
-        label: 'FINAL TOTALS',
-        isHeader: true,
-        isMobile: isMobile,
-      ),
-      _buildFooterItem(
-        label: formatCurrency(totalAnnualRevenue),
-        subLabel: 'Total CPF: ${formatCurrency(totalCPFCost)}',
-        valueColor: Colors.green[300],
-        isMobile: isMobile,
-      ),
-      _buildFooterItem(
-        label: formatCurrency(finalCumulativeRevenue),
-        valueColor: Colors.indigo[300],
-        isMobile: isMobile,
-      ),
-      _buildFooterItem(
-        label: formatCurrency(finalAssetValue),
-        valueColor: Colors.purple[300],
-        isMobile: isMobile,
-      ),
-      _buildFooterItem(
-        label: formatCurrency(totalValue),
-        subLabel: 'Revenue + Assets',
-        valueColor: Colors.green[300],
-        isLarge: true,
-        isMobile: isMobile,
-      ),
-      _buildFooterItem(
-        label: '${roiPercentage.toStringAsFixed(1)}%',
-        subLabel: '${formatCurrency(initialInvestment)} initial',
-        valueColor: Colors.green[300],
-        topLabel: 'ROI',
-        isMobile: isMobile,
-      ),
-    ];
-
-    if (isSmallScreen) {
-      return Wrap(
-        spacing: 0,
-        runSpacing: 12,
-        children: children.map((c) {
-          // Use LayoutBuilder to get available width if needed, or just use 50% width
-          // Since we are inside a Container, we can try using approx 50% width.
-          // context constraints might be needed, but Wrap works with width.
-          // Simpler: use fraction of width.
-          return SizedBox(
-            width: MediaQuery.of(context).size.width < 600
-                ? (MediaQuery.of(context).size.width - 60) /
-                      2 // Mobile: 2 columns accounting for padding
-                : (MediaQuery.of(context).size.width - 100) /
-                      3, // Tablet: 3 columns
-            child: c,
-          );
-        }).toList(),
-      );
-    }
-
-    return Row(children: children.map((c) => Expanded(child: c)).toList());
-  }
-
-  Widget _buildFooterItem({
-    required String label,
-    String? subLabel,
-    String? topLabel,
-    Color? valueColor,
-    bool isHeader = false,
-    bool isLarge = false,
-    bool isMobile = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isHeader)
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isMobile ? 12 : 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            )
-          else ...[
-            if (topLabel != null) ...[
-              Text(
-                topLabel,
-                style: TextStyle(
-                  fontSize: isMobile ? 9 : 11,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isLarge ? (isMobile ? 16 : 18) : (isMobile ? 12 : 14),
-                fontWeight: FontWeight.bold,
-                color: valueColor ?? Colors.white,
-              ),
-            ),
-            if (subLabel != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                subLabel,
-                style: TextStyle(
-                  fontSize: isMobile ? 9 : 11,
-                  color: Colors.grey[300],
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildBreakEvenTable({
     required List<dynamic> breakEvenData,
     required dynamic initialInvestment,
@@ -1282,8 +1112,57 @@ class BreakEvenTimelineWidget extends StatelessWidget {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // --- Calculate Totals ---
+    double totalRevenue = 0;
+    double totalCPF = 0;
+    for (var item in breakEvenData) {
+      totalRevenue += (item['annualRevenueWithCPF'] as num? ?? 0).toDouble();
+      totalCPF += (item['cpfCost'] as num? ?? 0).toDouble();
+    }
+
+    final lastItem = breakEvenData.isNotEmpty
+        ? breakEvenData.last
+        : <String, dynamic>{};
+    final finalCumulative = (lastItem['cumulativeRevenueWithCPF'] as num? ?? 0)
+        .toDouble();
+    final finalAsset = (lastItem['assetValue'] as num? ?? 0).toDouble();
+    final finalTotalValue = (lastItem['totalValueWithCPF'] as num? ?? 0)
+        .toDouble();
+    final double initialInvDouble = (initialInvestment is num)
+        ? initialInvestment.toDouble()
+        : 0.0;
+    final roi = initialInvDouble > 0
+        ? ((finalTotalValue - initialInvDouble) / initialInvDouble) * 100
+        : 0.0;
+    // ------------------------
+
     final columns = [
-      PlutoColumnBuilder.textColumn(title: 'Year', field: 'year', width: 120),
+      PlutoColumnBuilder.customColumn(
+        title: 'Year',
+        field: 'year',
+        width: 120,
+        renderer: (ctx) {
+          final val = ctx.cell.value.toString();
+          final isTotal = val == 'TOTAL';
+          return Container(
+            padding: const EdgeInsets.all(8),
+            alignment: Alignment.centerLeft,
+            color: isTotal
+                ? (isDark ? Colors.grey[800] : Colors.grey[200])
+                : null,
+            child: Text(
+              val,
+              style: TextStyle(
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                fontSize: isTotal ? 16 : 14,
+                color: isTotal
+                    ? (isDark ? Colors.white : Colors.black)
+                    : (isDark ? Colors.white : Colors.black87),
+              ),
+            ),
+          );
+        },
+      ),
       PlutoColumnBuilder.customColumn(
         title: 'Annual Revenue (Net)',
         field: 'annualRevenueWithCPF',
@@ -1293,6 +1172,7 @@ class BreakEvenTimelineWidget extends StatelessWidget {
           final cpfCost = ctx.row.cells['cpfCost']?.value ?? 0;
           final isBreakEvenRow =
               ctx.row.cells['isBreakEvenWithCPF']?.value == true;
+          final isTotal = ctx.row.cells['year']?.value == 'TOTAL';
 
           return Container(
             padding: const EdgeInsets.all(8),
@@ -1303,16 +1183,23 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                       left: BorderSide(color: Colors.green[500]!, width: 4),
                     ),
                   )
-                : null,
+                : (isTotal
+                      ? BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        )
+                      : null),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   formatCurrency((val as num).toDouble()),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: isTotal
+                        ? (isDark ? Colors.greenAccent : Colors.green[800])
+                        : Colors.green,
+                    fontSize: isTotal ? 15 : 14,
                   ),
                 ),
                 Text(
@@ -1332,17 +1219,23 @@ class BreakEvenTimelineWidget extends StatelessWidget {
           final val = ctx.cell.value;
           final isBreakEvenRow =
               ctx.row.cells['isBreakEvenWithCPF']?.value == true;
+          final isTotal = ctx.row.cells['year']?.value == 'TOTAL';
 
           return Container(
             padding: const EdgeInsets.all(8),
             decoration: isBreakEvenRow
                 ? BoxDecoration(color: Colors.green[50])
-                : null,
+                : (isTotal
+                      ? BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        )
+                      : null),
             child: Text(
               formatCurrency((val as num).toDouble()),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.indigo,
+                fontSize: isTotal ? 15 : 14,
               ),
             ),
           );
@@ -1356,17 +1249,23 @@ class BreakEvenTimelineWidget extends StatelessWidget {
           final val = ctx.cell.value;
           final isBreakEvenRow =
               ctx.row.cells['isBreakEvenWithCPF']?.value == true;
+          final isTotal = ctx.row.cells['year']?.value == 'TOTAL';
 
           return Container(
             padding: const EdgeInsets.all(8),
             decoration: isBreakEvenRow
                 ? BoxDecoration(color: Colors.green[50])
-                : null,
+                : (isTotal
+                      ? BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        )
+                      : null),
             child: Text(
               formatCurrency((val as num).toDouble()),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.purple,
+                fontSize: isTotal ? 15 : 14,
               ),
             ),
           );
@@ -1380,17 +1279,23 @@ class BreakEvenTimelineWidget extends StatelessWidget {
           final val = ctx.cell.value;
           final isBreakEvenRow =
               ctx.row.cells['isBreakEvenWithCPF']?.value == true;
+          final isTotal = ctx.row.cells['year']?.value == 'TOTAL';
 
           return Container(
             padding: const EdgeInsets.all(8),
             decoration: isBreakEvenRow
                 ? BoxDecoration(color: Colors.green[50])
-                : null,
+                : (isTotal
+                      ? BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        )
+                      : null),
             child: Text(
               formatCurrency((val as num).toDouble()),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.green[800],
+                fontSize: isTotal ? 15 : 14,
               ),
             ),
           );
@@ -1406,6 +1311,34 @@ class BreakEvenTimelineWidget extends StatelessWidget {
               ctx.row.cells['statusWithCPF']?.value as String? ?? 'in Progress';
           final isBreakEvenRow =
               ctx.row.cells['isBreakEvenWithCPF']?.value == true;
+          final isTotal = ctx.row.cells['year']?.value == 'TOTAL';
+
+          if (isTotal) {
+            return Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : Colors.grey[200],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ROI: ${percentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    'Initial: ${formatCurrency(initialInvDouble)}',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
 
           final color = status.contains('Break-Even')
               ? Colors.green[500]
@@ -1525,6 +1458,23 @@ class BreakEvenTimelineWidget extends StatelessWidget {
       );
     }).toList();
 
+    // Append Total Row
+    rows.add(
+      PlutoRow(
+        cells: {
+          'year': PlutoCell(value: 'TOTAL'),
+          'annualRevenueWithCPF': PlutoCell(value: totalRevenue),
+          'cpfCost': PlutoCell(value: totalCPF),
+          'cumulativeRevenueWithCPF': PlutoCell(value: finalCumulative),
+          'assetValue': PlutoCell(value: finalAsset),
+          'totalValueWithCPF': PlutoCell(value: finalTotalValue),
+          'recoveryPercentageWithCPF': PlutoCell(value: roi),
+          'statusWithCPF': PlutoCell(value: 'ROI'),
+          'isBreakEvenWithCPF': PlutoCell(value: false),
+        },
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxWidth < 600;
@@ -1608,80 +1558,151 @@ class BreakEvenTimelineWidget extends StatelessWidget {
                     numeric: true,
                   ),
                 ],
-                rows: breakEvenData.asMap().entries.map((entry) {
-                  final data = entry.value as Map<String, dynamic>;
-                  final year = data['year'] as int;
-                  final isBreakEvenRow = data['isBreakEvenWithCPF'] == true;
-                  final yearDisplay = year == startYear
-                      ? 'Y1 ($year)'
-                      : 'Y${entry.key + 1} ($year)';
-                  final recoveryPct = data['recoveryPercentageWithCPF'] ?? 0;
+                rows: [
+                  ...breakEvenData.asMap().entries.map((entry) {
+                    final data = entry.value as Map<String, dynamic>;
+                    final year = data['year'] as int;
+                    final isBreakEvenRow = data['isBreakEvenWithCPF'] == true;
+                    final yearDisplay = year == startYear
+                        ? 'Y1 ($year)'
+                        : 'Y${entry.key + 1} ($year)';
+                    final recoveryPct = data['recoveryPercentageWithCPF'] ?? 0;
 
-                  return DataRow(
-                    color: isBreakEvenRow
-                        ? WidgetStateProperty.all(Colors.green[50])
-                        : null,
-                    cells: [
-                      DataCell(
-                        Align(
-                          child: Text(
-                            
-                            yearDisplay,
+                    return DataRow(
+                      color: isBreakEvenRow
+                          ? WidgetStateProperty.all(Colors.green[50])
+                          : null,
+                      cells: [
+                        DataCell(
+                          Align(
+                            child: Text(
+                              yearDisplay,
+                              style: TextStyle(
+                                fontWeight: isBreakEvenRow
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isDark ? Colors.white : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            formatCurrency(
+                              (data['annualRevenueWithCPF'] as num? ?? 0)
+                                  .toDouble(),
+                            ),
                             style: TextStyle(
-                              fontWeight: isBreakEvenRow
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
                               color: isDark ? Colors.white : null,
                             ),
                           ),
                         ),
-                      ),
-                      DataCell(
-                        Text(
-                          formatCurrency(
-                            (data['annualRevenueWithCPF'] as num? ?? 0)
-                                .toDouble(),
+                        DataCell(
+                          Text(
+                            formatCurrency(
+                              (data['cumulativeRevenueWithCPF'] as num? ?? 0)
+                                  .toDouble(),
+                            ),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : null,
+                            ),
                           ),
-                          style: TextStyle(color: isDark ? Colors.white : null),
                         ),
-                      ),
-                      DataCell(
-                        Text(
-                          formatCurrency(
-                            (data['cumulativeRevenueWithCPF'] as num? ?? 0)
-                                .toDouble(),
+                        DataCell(
+                          Text(
+                            formatCurrency(
+                              (data['assetValue'] as num? ?? 0).toDouble(),
+                            ),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : null,
+                            ),
                           ),
-                          style: TextStyle(color: isDark ? Colors.white : null),
                         ),
-                      ),
-                      DataCell(
-                        Text(
-                          formatCurrency(
-                            (data['assetValue'] as num? ?? 0).toDouble(),
+                        DataCell(
+                          Text(
+                            formatCurrency(
+                              (data['totalValueWithCPF'] as num? ?? 0)
+                                  .toDouble(),
+                            ),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : null,
+                            ),
                           ),
-                          style: TextStyle(color: isDark ? Colors.white : null),
                         ),
-                      ),
-                      DataCell(
-                        Text(
-                          formatCurrency(
-                            (data['totalValueWithCPF'] as num? ?? 0).toDouble(),
+                        DataCell(
+                          Text(
+                            '${(recoveryPct as num).toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isBreakEvenRow ? Colors.green[700] : null,
+                            ),
                           ),
-                          style: TextStyle(color: isDark ? Colors.white : null),
                         ),
-                      ),
+                      ],
+                    );
+                  }),
+                  DataRow(
+                    color: WidgetStateProperty.all(
+                      isDark ? Colors.grey[800] : Colors.grey[200],
+                    ),
+                    cells: [
                       DataCell(
                         Text(
-                          '${(recoveryPct as num).toStringAsFixed(1)}%',
+                          'TOTAL',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: isBreakEvenRow ? Colors.green[700] : null,
+                            color: isDark ? Colors.white : null,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          formatCurrency(totalRevenue),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : null,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          formatCurrency(finalCumulative),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : null,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          formatCurrency(finalAsset),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : null,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          formatCurrency(finalTotalValue),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : null,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          'ROI: ${roi.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : null,
                           ),
                         ),
                       ),
                     ],
-                  );
-                }).toList(),
+                  ),
+                ],
               ),
             ),
           );

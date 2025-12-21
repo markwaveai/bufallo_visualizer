@@ -1,4 +1,3 @@
-
 import 'package:buffalo_visualizer/buffalo_tree/models/tree_theme.dart';
 import 'package:buffalo_visualizer/buffalo_tree/view/buffalo_tree_widget.dart';
 import 'package:buffalo_visualizer/components/buffalo_family_tree/cost_estimation_table.dart';
@@ -55,7 +54,8 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
   ViewMode _currentView = ViewMode.tree;
   bool _isTreeFullscreen = false;
   bool _showControlsDrawer = false; // For mobile drawer
-  String _selectedBuffaloType = 'A'; // 'A' or 'B' or 'ALL' (mobile drawer + tree)
+  String _selectedBuffaloType =
+      'A'; // 'A' or 'B' or 'ALL' (mobile drawer + tree)
 
   // Temporary controllers for text fields to decouple from provider updates while typing
   late TextEditingController _unitsController;
@@ -81,6 +81,17 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
     // Listen to simulation state
     final simState = ref.watch(simulationProvider);
     final simNotifier = ref.read(simulationProvider.notifier);
+
+    // Sync controllers when simulation finishes loading (initial load or reset)
+    ref.listen(simulationProvider, (previous, next) {
+      if (previous?.isLoading == true &&
+          next.isLoading == false &&
+          next.config != null) {
+        _unitsController.text = next.units.toString();
+        _yearsController.text = next.years.toString();
+      }
+    });
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isMobile = MediaQuery.of(context).size.width < 600;
 
@@ -93,8 +104,12 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
     return _buildDesktopLayout(context, simState, simNotifier, isDark);
   }
 
-  Widget _buildMobileLayout(BuildContext context, SimulationState simState,
-      SimulationNotifier simNotifier, bool isDark) {
+  Widget _buildMobileLayout(
+    BuildContext context,
+    SimulationState simState,
+    SimulationNotifier simNotifier,
+    bool isDark,
+  ) {
     return Stack(
       children: [
         // Main content
@@ -105,10 +120,9 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
             if (!_isTreeFullscreen)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 color: isDark ? Colors.grey[900] : Colors.white,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Menu button
                     IconButton(
@@ -122,16 +136,10 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                         });
                       },
                     ),
-                    // Title
-                    Text(
-                      'Buffalo Herd Investments',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(width: 4),
+                    // View Mode Toggle (Moved here)
+                    Expanded(child: _buildMobileViewModePillToggle(isDark)),
+                    const SizedBox(width: 4),
                     // Theme Toggle
                     IconButton(
                       icon: Icon(
@@ -147,15 +155,8 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                 ),
               ),
 
-            // View Mode Toggle
-            if (!_isTreeFullscreen)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _buildMobileViewModePillToggle(isDark),
-              ),
-
             // Status indicator
-           // _buildStatusIndicator(simState, isDark),
+            // _buildStatusIndicator(simState, isDark),
 
             // Main Content Area
             Expanded(
@@ -174,7 +175,10 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                   );
                 },
                 transitionBuilder: (child, animation) {
-                  final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+                  final fade = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  );
                   final slide = Tween<Offset>(
                     begin: const Offset(0.02, 0),
                     end: Offset.zero,
@@ -203,8 +207,11 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
               width: 350,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.only(topRight: Radius.circular(26),bottomRight: Radius.circular(26)),
-              color: isDark ? Colors.black : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(26),
+                  bottomRight: Radius.circular(26),
+                ),
+                color: isDark ? Colors.black : Colors.white,
               ),
               child: Column(
                 children: [
@@ -265,8 +272,8 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                                     ),
                                     keyboardType:
                                         const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
+                                          decimal: true,
+                                        ),
                                     onSubmitted: (v) {
                                       simNotifier.updateSettings(
                                         units: double.tryParse(v),
@@ -321,36 +328,49 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                                   lastDate: DateTime(2100),
                                 );
                                 if (picked != null) {
-                                  simNotifier.updateSettings(
-                                    startDate: picked,
-                                  );
+                                  simNotifier.updateSettings(startDate: picked);
                                 }
                               },
                             ),
                           ),
                           const SizedBox(height: 22),
                           _buildDrawerRunResetRow(
+                            isDark: isDark,
                             onRun: () {
                               _validateAndRunSimulation(simNotifier, context);
                             },
                             onReset: () {
                               FocusScope.of(context).unfocus();
                               simNotifier.reset();
-                              _unitsController.text = '1';
-                              _yearsController.text = '10';
+                              // Update controllers with defaults from config
+                              if (simState.config != null) {
+                                _unitsController.text = simState
+                                    .config!
+                                    .defaultUnits
+                                    .toString();
+                                _yearsController.text = simState
+                                    .config!
+                                    .defaultYears
+                                    .toString();
+                              } else {
+                                // Fallback
+                                _unitsController.text = '1';
+                                _yearsController.text = '10';
+                              }
                             },
                           ),
 
                           const SizedBox(height: 22),
                           if (simState.treeData != null &&
                               simState.revenueData != null)
-                            _buildDrawerStatsRow(simState,isDark)
+                            _buildDrawerStatsRow(simState, isDark)
                           else
                             const SizedBox.shrink(),
 
-                          if (simState.treeData != null) const SizedBox(height: 22),
                           if (simState.treeData != null)
-                            _buildDrawerBuffaloTypeSection(simState,isDark),
+                            const SizedBox(height: 22),
+                          if (simState.treeData != null)
+                            _buildDrawerBuffaloTypeSection(simState, isDark),
                         ],
                       ),
                     ),
@@ -363,8 +383,12 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context, SimulationState simState,
-      SimulationNotifier simNotifier, bool isDark) {
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    SimulationState simState,
+    SimulationNotifier simNotifier,
+    bool isDark,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -459,7 +483,8 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                                   style: const TextStyle(fontSize: 13),
                                   keyboardType:
                                       const TextInputType.numberWithOptions(
-                                          decimal: true),
+                                        decimal: true,
+                                      ),
                                   onSubmitted: (v) {
                                     simNotifier.updateSettings(
                                       units: double.tryParse(v),
@@ -566,8 +591,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                                   vertical: 8,
                                 ),
                                 minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -588,8 +612,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                                   vertical: 8,
                                 ),
                                 minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                             ),
                             if (simState.treeData != null &&
@@ -606,12 +629,10 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
           ),
 
         // Status indicator
-       // _buildStatusIndicator(simState, isDark),
+        // _buildStatusIndicator(simState, isDark),
 
         // Main Content Area
-        Expanded(
-          child: _buildMainContent(simState, isDark),
-        ),
+        Expanded(child: _buildMainContent(simState, isDark)),
       ],
     );
   }
@@ -646,7 +667,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
   //         ],
   //       ),
   //     );
-  //   } 
+  //   }
   //   else {
   //     return Container(
   //       padding: const EdgeInsets.all(12),
@@ -708,26 +729,20 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.account_tree,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
+                    Icon(Icons.account_tree, size: 64, color: Colors.grey[400]),
                     const SizedBox(height: 16),
                     Text(
                       'No genealogy tree yet',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Click "Run" to generate the buffalo family tree',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.grey[500]),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -740,6 +755,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
               treeData: simState.treeData!,
               revenueData: simState.revenueData!,
               isEmbedded: true,
+              config: simState.config,
             )
           : Container(
               color: isDark ? Colors.black : Colors.grey[50],
@@ -747,26 +763,20 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.table_chart,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
+                    Icon(Icons.table_chart, size: 64, color: Colors.grey[400]),
                     const SizedBox(height: 16),
                     Text(
                       'No estimation data yet',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Click "Run" to generate data for price estimation',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.grey[500]),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -776,7 +786,9 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
   }
 
   void _validateAndRunSimulation(
-      SimulationNotifier simNotifier, BuildContext context) {
+    SimulationNotifier simNotifier,
+    BuildContext context,
+  ) {
     final unitsText = _unitsController.text.trim();
     final double? unitsVal = double.tryParse(unitsText);
 
@@ -801,7 +813,8 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Invalid Units: Please enter 0.5 or a whole number (1, 2, etc.)'),
+            'Invalid Units: Please enter 0.5 or a whole number (1, 2, etc.)',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -843,25 +856,33 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
           ((lastYear - birthYear) * 12) + (targetMonth - birthMonth);
       if (ageInMonths < 0) continue;
 
-      int value = 3000;
-      if (ageInMonths >= 60) {
-        value = 175000;
-      } else if (ageInMonths >= 48) {
-        value = 150000;
-      } else if (ageInMonths >= 40) {
-        value = 100000;
-      } else if (ageInMonths >= 36) {
-        value = 50000;
-      } else if (ageInMonths >= 30) {
-        value = 50000;
-      } else if (ageInMonths >= 24) {
-        value = 35000;
-      } else if (ageInMonths >= 18) {
-        value = 25000;
-      } else if (ageInMonths >= 12) {
-        value = 12000;
-      } else if (ageInMonths >= 6) {
-        value = 6000;
+      int value = 10000;
+      if (simState.config?.assetValues != null) {
+        final sortedKeys = simState.config!.assetValues.keys.toList()
+          ..sort((a, b) => b.compareTo(a));
+        for (final threshold in sortedKeys) {
+          if (ageInMonths >= threshold) {
+            value = simState.config!.assetValues[threshold]!.toInt();
+            break;
+          }
+        }
+      } else {
+        // Fallback (Updated to match new schedule)
+        if (ageInMonths >= 49) {
+          value = 200000;
+        } else if (ageInMonths >= 41) {
+          value = 175000;
+        } else if (ageInMonths >= 35) {
+          value = 150000;
+        } else if (ageInMonths >= 25) {
+          value = 100000;
+        } else if (ageInMonths >= 19) {
+          value = 40000;
+        } else if (ageInMonths >= 13) {
+          value = 25000;
+        } else {
+          value = 10000;
+        }
       }
 
       totalAssetValue += value;
@@ -873,18 +894,19 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
   Widget _buildDrawerInputCard({
     required String label,
     required Widget child,
-     required bool isDark,
+    required bool isDark,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           label,
+          textAlign: TextAlign.center,
           style: textTheme.labelLarge?.copyWith(
-            color:isDark?Colors.white: Colors.black,
+            color: isDark ? Colors.white : Colors.black,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -893,7 +915,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color:isDark?Colors.white: scheme.surfaceContainerHighest,
+            color: isDark ? Colors.white : scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: scheme.outlineVariant),
           ),
@@ -916,8 +938,8 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
       children: [
         Text(
           label,
-          style:  TextStyle(
-            color: isDark?Colors.white: Colors.black,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -931,7 +953,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
             width: 150,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: isDark?Colors.white:scheme.surfaceContainerHighest,
+              color: isDark ? Colors.white : scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(18),
             ),
             alignment: Alignment.center,
@@ -961,56 +983,65 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
   }
 
   Widget _buildDrawerRunResetRow({
+    required bool isDark,
     required VoidCallback onRun,
     required VoidCallback onReset,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    final labelStyle = textTheme.labelLarge?.copyWith(
-      fontWeight: FontWeight.w800,
-      letterSpacing: 0.2,
-    );
-
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        children: [
-          Expanded(
-            child: Material(
-              color: scheme.primary,
-              child: InkWell(
-                onTap: onRun,
-                child: Center(
-                  child: Text(
-                    'Run',
-                    style: labelStyle?.copyWith(color: scheme.onPrimary),
-                  ),
-                ),
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: onRun,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32), // Green shade
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 4,
+              shadowColor: const Color(0xFF2E7D32).withOpacity(0.4),
+            ),
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+            label: const Text(
+              'RUN',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.5,
               ),
             ),
           ),
-          Expanded(
-            child: Material(
-              color: scheme.surfaceContainerHighest,
-              child: InkWell(
-                onTap: onReset,
-                child: Center(
-                  child: Text(
-                    'Reset',
-                    style: labelStyle?.copyWith(color: scheme.primary),
-                  ),
-                ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onReset,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: isDark ? Colors.white70 : Colors.black87,
+              backgroundColor: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: BorderSide(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            label: const Text(
+              'RESET',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                letterSpacing: 0.5,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1030,10 +1061,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: outerColor,
-          width: 1.4,
-        ),
+        border: Border.all(color: outerColor, width: 1.4),
       ),
       child: Container(
         padding: const EdgeInsets.all(4),
@@ -1075,14 +1103,16 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                           borderRadius: BorderRadius.circular(999),
                           child: const Padding(
                             padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                              horizontal: 4,
+                              vertical: 6,
+                            ),
                             child: Center(
                               child: Text(
-                                'Tree View',
+                                'Tree',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1100,14 +1130,16 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                           borderRadius: BorderRadius.circular(999),
                           child: const Padding(
                             padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                              horizontal: 4,
+                              vertical: 6,
+                            ),
                             child: Center(
                               child: Text(
-                                'Revenue Estimation',
+                                'Estimation',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1125,11 +1157,11 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                       Expanded(
                         child: Center(
                           child: Text(
-                            'Tree View',
+                            'Tree',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: isTree ? Colors.white : Colors.black,
                             ),
@@ -1140,11 +1172,11 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
                       Expanded(
                         child: Center(
                           child: Text(
-                            'Revenue Estimation',
+                            'Estimation',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: isTree ? Colors.black : Colors.white,
                             ),
@@ -1162,7 +1194,7 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
     );
   }
 
-  Widget _buildDrawerStatsRow(SimulationState simState,bool isDark) {
+  Widget _buildDrawerStatsRow(SimulationState simState, bool isDark) {
     final buffaloes = simState.treeData!['buffaloes'] as List<dynamic>;
     final totalBuffaloes = buffaloes.length;
     final netRevenue =
@@ -1205,42 +1237,62 @@ class _ControllerPageState extends ConsumerState<ControllerPage> {
   }) {
     return Column(
       children: [
-        
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white70 : Colors.black54,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Container(
-          height: 72,
-          decoration: BoxDecoration(
-            color: isDark?Colors.white:Colors.black54,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          alignment: Alignment.center,
+          width: double.infinity,
+          height: 60,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style:  TextStyle(
-color: isDark?Colors.black87:Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [const Color(0xFF2C2C2C), const Color(0xFF1A1A1A)]
+                  : [const Color(0xFFFFFFFF), const Color(0xFFF5F5F7)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(
+              color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            ),
+          ),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF2D3436),
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
         ),
-        
       ],
     );
   }
 
-  bool _isTypeAFromData(Map<String, dynamic> buffalo, Map<String, dynamic> treeData) {
+  bool _isTypeAFromData(
+    Map<String, dynamic> buffalo,
+    Map<String, dynamic> treeData,
+  ) {
     final startMonth = treeData['startMonth'] as int? ?? 0;
     final acqMonth = buffalo['acquisitionMonth'] as int? ?? startMonth;
     return acqMonth == startMonth;
@@ -1252,24 +1304,20 @@ color: isDark?Colors.black87:Colors.white,
     if (type == 'A') {
       return buffaloes
           .where(
-            (b) => _isTypeAFromData(
-              b as Map<String, dynamic>,
-              simState.treeData!,
-            ),
+            (b) =>
+                _isTypeAFromData(b as Map<String, dynamic>, simState.treeData!),
           )
           .length;
     }
     return buffaloes
         .where(
-          (b) => !_isTypeAFromData(
-            b as Map<String, dynamic>,
-            simState.treeData!,
-          ),
+          (b) =>
+              !_isTypeAFromData(b as Map<String, dynamic>, simState.treeData!),
         )
         .length;
   }
 
-  Widget _buildDrawerBuffaloTypeSection(SimulationState simState,isDark) {
+  Widget _buildDrawerBuffaloTypeSection(SimulationState simState, isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -1301,11 +1349,7 @@ color: isDark?Colors.black87:Colors.white,
                   ),
                   if (_getBuffaloCountFromState(simState, 'B') > 0) ...[
                     const SizedBox(width: 6),
-                    Container(
-                      width: 1,
-                      height: 20,
-                      color: Colors.grey[300],
-                    ),
+                    Container(width: 1, height: 20, color: Colors.grey[300]),
                     const SizedBox(width: 6),
                     _buildDrawerTypeButton(
                       'B',
@@ -1315,11 +1359,7 @@ color: isDark?Colors.black87:Colors.white,
                     ),
                   ],
                   const SizedBox(width: 6),
-                  Container(
-                    width: 1,
-                    height: 20,
-                    color: Colors.grey[300],
-                  ),
+                  Container(width: 1, height: 20, color: Colors.grey[300]),
                   const SizedBox(width: 6),
                   _buildDrawerTypeButton(
                     'ALL',
@@ -1333,7 +1373,7 @@ color: isDark?Colors.black87:Colors.white,
           ),
         ),
         const SizedBox(height: 10),
-        _buildDrawerFilteredStatsWidget(simState,isDark),
+        _buildDrawerFilteredStatsWidget(simState, isDark),
       ],
     );
   }
@@ -1359,19 +1399,19 @@ color: isDark?Colors.black87:Colors.white,
           decoration: BoxDecoration(
             color: isSelected
                 ? (type == 'A'
-                    ? Colors.blue.withOpacity(0.1)
-                    : type == 'B'
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.purple.withOpacity(0.1))
+                      ? Colors.blue.withOpacity(0.1)
+                      : type == 'B'
+                      ? Colors.green.withOpacity(0.1)
+                      : Colors.purple.withOpacity(0.1))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
                   ? (type == 'A'
-                      ? Colors.blue
-                      : type == 'B'
-                          ? Colors.green
-                          : Colors.purple)
+                        ? Colors.blue
+                        : type == 'B'
+                        ? Colors.green
+                        : Colors.purple)
                   : Colors.transparent,
               width: 1.4,
             ),
@@ -1386,10 +1426,10 @@ color: isDark?Colors.black87:Colors.white,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? (type == 'A'
-                          ? Colors.blue.shade800
-                          : type == 'B'
-                              ? Colors.green.shade800
-                              : Colors.purple.shade800)
+                            ? Colors.blue.shade800
+                            : type == 'B'
+                            ? Colors.green.shade800
+                            : Colors.purple.shade800)
                       : Colors.grey.shade700,
                 ),
               ),
@@ -1401,10 +1441,10 @@ color: isDark?Colors.black87:Colors.white,
                   fontWeight: FontWeight.w500,
                   color: isSelected
                       ? (type == 'A'
-                          ? Colors.blue.shade600
-                          : type == 'B'
-                              ? Colors.green.shade600
-                              : Colors.purple.shade600)
+                            ? Colors.blue.shade600
+                            : type == 'B'
+                            ? Colors.green.shade600
+                            : Colors.purple.shade600)
                       : Colors.grey.shade500,
                 ),
               ),
@@ -1424,7 +1464,7 @@ color: isDark?Colors.black87:Colors.white,
     return '₹${value.toStringAsFixed(0)}';
   }
 
-  Widget _buildDrawerFilteredStatsWidget(SimulationState simState,isDark) {
+  Widget _buildDrawerFilteredStatsWidget(SimulationState simState, isDark) {
     final treeData = simState.treeData as Map<String, dynamic>?;
     if (treeData == null) return const SizedBox.shrink();
 
@@ -1501,10 +1541,10 @@ color: isDark?Colors.black87:Colors.white,
       crossAxisSpacing: 14,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2,
+      childAspectRatio: 2.5,
       children: [
         _buildDrawerBigStatCard(
-          isDark:isDark,
+          isDark: isDark,
           title: 'Buffaloes',
           value: '${filtered.length}',
         ),
@@ -1535,47 +1575,57 @@ color: isDark?Colors.black87:Colors.white,
   Widget _buildDrawerBigStatCard({
     required String title,
     required String value,
-    required bool isDark
+    required bool isDark,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark?Colors.white:Colors.black54,
-        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF333333), const Color(0xFF1F1F1F)]
+              : [const Color(0xFFFFFFFF), const Color(0xFFF0F2F5)],
+        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).shadowColor.withOpacity(0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             title,
+            textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: textTheme.titleSmall?.copyWith(
-              color: scheme.onInverseSurface,
-              fontWeight: FontWeight.w700,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : Colors.black54,
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               value,
-              style: textTheme.titleSmall?.copyWith(
-                color: scheme.onInverseSurface,
-                fontWeight: FontWeight.w800,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+                letterSpacing: -0.5,
               ),
             ),
           ),
-          const Spacer(),
         ],
       ),
     );
@@ -1615,29 +1665,41 @@ color: isDark?Colors.black87:Colors.white,
       if (ageInMonths < 0) continue;
 
       int value = 3000;
-      if (ageInMonths >= 60)
-        value = 175000;
-      else if (ageInMonths >= 48)
-        value = 150000;
-      else if (ageInMonths >= 40)
-        value = 100000;
-      else if (ageInMonths >= 36)
-        value = 50000;
-      else if (ageInMonths >= 30)
-        value = 50000;
-      else if (ageInMonths >= 24)
-        value = 35000;
-      else if (ageInMonths >= 18)
-        value = 25000;
-      else if (ageInMonths >= 12)
-        value = 12000;
-      else if (ageInMonths >= 6) value = 6000;
+      if (simState.config?.assetValues != null) {
+        final sortedKeys = simState.config!.assetValues.keys.toList()
+          ..sort((a, b) => b.compareTo(a));
+        for (final threshold in sortedKeys) {
+          if (ageInMonths >= threshold) {
+            value = simState.config!.assetValues[threshold]!.toInt();
+            break;
+          }
+        }
+      } else {
+        if (ageInMonths >= 60)
+          value = 175000;
+        else if (ageInMonths >= 48)
+          value = 150000;
+        else if (ageInMonths >= 40)
+          value = 100000;
+        else if (ageInMonths >= 36)
+          value = 50000;
+        else if (ageInMonths >= 30)
+          value = 50000;
+        else if (ageInMonths >= 24)
+          value = 35000;
+        else if (ageInMonths >= 18)
+          value = 25000;
+        else if (ageInMonths >= 12)
+          value = 12000;
+        else if (ageInMonths >= 6)
+          value = 6000;
+      }
 
       totalAssetValue += value;
     }
 
     final isMobile = MediaQuery.of(context).size.width < 600;
-    
+
     if (isMobile) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1794,8 +1856,8 @@ color: isDark?Colors.black87:Colors.white,
                 color: isSelected
                     ? Colors.white
                     : (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[200]
-                        : Colors.grey[800]),
+                          ? Colors.grey[200]
+                          : Colors.grey[800]),
               ),
             ),
           ),

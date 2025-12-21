@@ -68,30 +68,24 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
 
   // Get buffalo market value based on age in months
   int getBuffaloValueByAge(int ageInMonths) {
-    if (ageInMonths >= 60) return 175000;
-    if (ageInMonths >= 48) return 150000;
-    if (ageInMonths >= 40) return 100000;
-    if (ageInMonths >= 36) return 50000;
-    if (ageInMonths >= 30) return 50000;
-    if (ageInMonths >= 24) return 35000;
-    if (ageInMonths >= 18) return 25000;
-    if (ageInMonths >= 12) return 12000;
-    if (ageInMonths >= 6) return 6000;
-    return 3000;
+    if (ageInMonths >= 49) return 200000;
+    if (ageInMonths >= 41) return 175000;
+    if (ageInMonths >= 35) return 150000;
+    if (ageInMonths >= 25) return 100000;
+    if (ageInMonths >= 19) return 40000;
+    if (ageInMonths >= 13) return 25000;
+    return 10000;
   }
 
   // Get age category label (match React AssetMarketValue ageCategories keys)
   String getAgeCategory(int ageInMonths) {
-    if (ageInMonths >= 60) return '60+ months (Mother Buffalo)';
-    if (ageInMonths >= 48) return '48-60 months';
-    if (ageInMonths >= 40) return '40-48 months';
-    if (ageInMonths >= 36) return '36-40 months';
-    if (ageInMonths >= 30) return '30-36 months';
-    if (ageInMonths >= 24) return '24-30 months';
-    if (ageInMonths >= 18) return '18-24 months';
-    if (ageInMonths >= 12) return '12-18 months';
-    if (ageInMonths >= 6) return '6-12 months';
-    return '0-6 months (Calves)'; // Changed to match React
+    if (ageInMonths >= 49) return '49+ months';
+    if (ageInMonths >= 41) return '41-48 months';
+    if (ageInMonths >= 35) return '35-40 months';
+    if (ageInMonths >= 25) return '25-34 months';
+    if (ageInMonths >= 19) return '19-24 months';
+    if (ageInMonths >= 13) return '13-18 months';
+    return '0-12 months';
   }
 
   // Build per-year asset market value timeline
@@ -100,16 +94,13 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
     final years = widget.treeData['years'] ?? 10;
 
     final categories = <String, int>{
-      '0-6 months (Calves)': 3000,
-      '6-12 months': 6000,
-      '12-18 months': 12000,
-      '18-24 months': 25000,
-      '24-30 months': 35000,
-      '30-36 months': 50000,
-      '36-40 months': 50000,
-      '40-48 months': 100000,
-      '48-60 months': 150000,
-      '60+ months (Mother Buffalo)': 175000,
+      '0-12 months': 10000,
+      '13-18 months': 25000,
+      '19-24 months': 40000,
+      '25-34 months': 100000,
+      '35-40 months': 150000,
+      '41-48 months': 175000,
+      '49+ months': 200000,
     };
 
     final List<Map<String, dynamic>> result = [];
@@ -132,9 +123,6 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
         // Timeline filtering checks
         if (onlyGen0 && (buffalo['generation'] as int? ?? 0) > 0) return;
         if (year < (buffalo['birthYear'] as int)) return;
-        // If same year and month is strictly before birthMonth (if we tracked strict dates)
-        // But for Jan (month 0), if birthMonth is 0, age is 0.
-        // The 'onlyGen0' flag handles the Initial State strictness.
 
         final ageInMonths = widget.calculateAgeInMonths(buffalo, year, month);
         final category = getAgeCategory(ageInMonths);
@@ -143,17 +131,17 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
             ? category
             : (ageCategories.keys.firstWhere(
                 (k) => k.startsWith(category),
-                orElse: () => '0-6 months (Calves)',
+                orElse: () => '0-12 months',
               ));
 
-        final unitValue = categories[key] ?? 3000;
+        final unitValue = categories[key] ?? 10000;
         ageCategories[key]!['count'] =
             (ageCategories[key]!['count'] as num) + 1;
         ageCategories[key]!['value'] =
             (ageCategories[key]!['value'] as num) + unitValue;
 
         totalBuffaloes += 1;
-        if (ageInMonths >= 60) {
+        if (ageInMonths >= 49) {
           motherBuffaloes += 1;
         }
       });
@@ -177,13 +165,8 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
       };
     }
 
-    // 1. Add Initial State (Jan 1st of Start Year) - Only Parents (Gen 0)
-    result.add(calculateForPoint(startYear, 0, onlyGen0: true));
-
-    // 2. Add Yearly States (Dec 31st of each year)
-    // Start from i=1 to avoid duplicate "2026" (Initial vs End of Year 1)
-    // Use i < years to stay within the 10-year simulation bounds (e.g. up to 2035, not 2036)
-    for (int i = 1; i < years; i++) {
+    // Add Yearly States (Dec 31st of each year) starting from Year 1
+    for (int i = 0; i < years; i++) {
       result.add(calculateForPoint(startYear + i, 11));
     }
 
@@ -197,20 +180,13 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
     bool onlyGen0 = false,
   }) {
     final ageGroups = {
-      '0-6 months (Calves)': {'count': 0, 'value': 0, 'unitValue': 3000},
-      '6-12 months': {'count': 0, 'value': 0, 'unitValue': 6000},
-      '12-18 months': {'count': 0, 'value': 0, 'unitValue': 12000},
-      '18-24 months': {'count': 0, 'value': 0, 'unitValue': 25000},
-      '24-30 months': {'count': 0, 'value': 0, 'unitValue': 35000},
-      '30-36 months': {'count': 0, 'value': 0, 'unitValue': 50000},
-      '36-40 months': {'count': 0, 'value': 0, 'unitValue': 50000},
-      '40-48 months': {'count': 0, 'value': 0, 'unitValue': 100000},
-      '48-60 months': {'count': 0, 'value': 0, 'unitValue': 150000},
-      '60+ months (Mother Buffalo)': {
-        'count': 0,
-        'value': 0,
-        'unitValue': 175000,
-      },
+      '0-12 months': {'count': 0, 'value': 0, 'unitValue': 10000},
+      '13-18 months': {'count': 0, 'value': 0, 'unitValue': 25000},
+      '19-24 months': {'count': 0, 'value': 0, 'unitValue': 40000},
+      '25-34 months': {'count': 0, 'value': 0, 'unitValue': 100000},
+      '35-40 months': {'count': 0, 'value': 0, 'unitValue': 150000},
+      '41-48 months': {'count': 0, 'value': 0, 'unitValue': 175000},
+      '49+ months': {'count': 0, 'value': 0, 'unitValue': 200000},
     };
 
     double totalValue = 0;
@@ -222,57 +198,41 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
         final ageInMonths = widget.calculateAgeInMonths(buffalo, year, month);
         final value = getBuffaloValueByAge(ageInMonths);
 
-        if (ageInMonths >= 60) {
-          ageGroups['60+ months (Mother Buffalo)']!['count'] =
-              (ageGroups['60+ months (Mother Buffalo)']!['count'] as int) + 1;
-          ageGroups['60+ months (Mother Buffalo)']!['value'] =
-              (ageGroups['60+ months (Mother Buffalo)']!['value'] as int) +
-              value;
-        } else if (ageInMonths >= 48) {
-          ageGroups['48-60 months']!['count'] =
-              (ageGroups['48-60 months']!['count'] as int) + 1;
-          ageGroups['48-60 months']!['value'] =
-              (ageGroups['48-60 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 40) {
-          ageGroups['40-48 months']!['count'] =
-              (ageGroups['40-48 months']!['count'] as int) + 1;
-          ageGroups['40-48 months']!['value'] =
-              (ageGroups['40-48 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 36) {
-          ageGroups['36-40 months']!['count'] =
-              (ageGroups['36-40 months']!['count'] as int) + 1;
-          ageGroups['36-40 months']!['value'] =
-              (ageGroups['36-40 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 30) {
-          ageGroups['30-36 months']!['count'] =
-              (ageGroups['30-36 months']!['count'] as int) + 1;
-          ageGroups['30-36 months']!['value'] =
-              (ageGroups['30-36 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 24) {
-          ageGroups['24-30 months']!['count'] =
-              (ageGroups['24-30 months']!['count'] as int) + 1;
-          ageGroups['24-30 months']!['value'] =
-              (ageGroups['24-30 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 18) {
-          ageGroups['18-24 months']!['count'] =
-              (ageGroups['18-24 months']!['count'] as int) + 1;
-          ageGroups['18-24 months']!['value'] =
-              (ageGroups['18-24 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 12) {
-          ageGroups['12-18 months']!['count'] =
-              (ageGroups['12-18 months']!['count'] as int) + 1;
-          ageGroups['12-18 months']!['value'] =
-              (ageGroups['12-18 months']!['value'] as int) + value;
-        } else if (ageInMonths >= 6) {
-          ageGroups['6-12 months']!['count'] =
-              (ageGroups['6-12 months']!['count'] as int) + 1;
-          ageGroups['6-12 months']!['value'] =
-              (ageGroups['6-12 months']!['value'] as int) + value;
+        if (ageInMonths >= 49) {
+          ageGroups['49+ months']!['count'] =
+              (ageGroups['49+ months']!['count'] as int) + 1;
+          ageGroups['49+ months']!['value'] =
+              (ageGroups['49+ months']!['value'] as int) + value;
+        } else if (ageInMonths >= 41) {
+          ageGroups['41-48 months']!['count'] =
+              (ageGroups['41-48 months']!['count'] as int) + 1;
+          ageGroups['41-48 months']!['value'] =
+              (ageGroups['41-48 months']!['value'] as int) + value;
+        } else if (ageInMonths >= 35) {
+          ageGroups['35-40 months']!['count'] =
+              (ageGroups['35-40 months']!['count'] as int) + 1;
+          ageGroups['35-40 months']!['value'] =
+              (ageGroups['35-40 months']!['value'] as int) + value;
+        } else if (ageInMonths >= 25) {
+          ageGroups['25-34 months']!['count'] =
+              (ageGroups['25-34 months']!['count'] as int) + 1;
+          ageGroups['25-34 months']!['value'] =
+              (ageGroups['25-34 months']!['value'] as int) + value;
+        } else if (ageInMonths >= 19) {
+          ageGroups['19-24 months']!['count'] =
+              (ageGroups['19-24 months']!['count'] as int) + 1;
+          ageGroups['19-24 months']!['value'] =
+              (ageGroups['19-24 months']!['value'] as int) + value;
+        } else if (ageInMonths >= 13) {
+          ageGroups['13-18 months']!['count'] =
+              (ageGroups['13-18 months']!['count'] as int) + 1;
+          ageGroups['13-18 months']!['value'] =
+              (ageGroups['13-18 months']!['value'] as int) + value;
         } else {
-          ageGroups['0-6 months (Calves)']!['count'] =
-              (ageGroups['0-6 months (Calves)']!['count'] as int) + 1;
-          ageGroups['0-6 months (Calves)']!['value'] =
-              (ageGroups['0-6 months (Calves)']!['value'] as int) + value;
+          ageGroups['0-12 months']!['count'] =
+              (ageGroups['0-12 months']!['count'] as int) + 1;
+          ageGroups['0-12 months']!['value'] =
+              (ageGroups['0-12 months']!['value'] as int) + value;
         }
 
         totalValue += value;
@@ -292,7 +252,6 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
     // Basic Data Checks
     final totalBuffaloes = widget.buffaloDetails.length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
 
     if (_assetMarketValue.isEmpty || totalBuffaloes == 0) {
       return Padding(
@@ -333,10 +292,20 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
           ? const Color(0xFF121212)
           : const Color(0xFFF5F7FA), // Premium Background
       child: SingleChildScrollView(
-        padding: isMobile?EdgeInsets.all(0): EdgeInsets.all(24),
+        padding: isMobile ? EdgeInsets.all(0) : EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header Summary Cards
+            _buildHeaderSummaryCards(isDark, isMobile),
+
+            const SizedBox(height: 24),
+
+            // Age-Based Price Schedule
+            _buildPriceScheduleValues(isDark, isMobile),
+
+            const SizedBox(height: 24),
+
             // 1. Year-wise Overview Table (The "All Detailed" Timeline)
             Container(
               decoration: BoxDecoration(
@@ -402,7 +371,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               child: Column(
                 children: [
                   Padding(
-                    padding:  EdgeInsets.all(20),
+                    padding: EdgeInsets.all(20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -412,7 +381,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
                               Icons.inventory_2_outlined,
                               color: Colors.purple[600],
                             ),
-                             SizedBox(width: isMobile?8:12),
+                            SizedBox(width: isMobile ? 8 : 12),
                             Text(
                               'Detailed Breakdown',
                               style: TextStyle(
@@ -484,7 +453,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
               : (_assetMarketValue.firstOrNull),
           icon: Icon(
             Icons.arrow_drop_down,
-            size: isMobile?18:16,
+            size: isMobile ? 18 : 16,
             color: isDark ? Colors.grey[400] : Colors.grey[600],
           ),
           style: TextStyle(
@@ -517,199 +486,179 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
 
     const columnCount = 5;
     final horizontalMargin = isMobile ? 8.0 : 12.0;
-    final availableWidth =
-        (constraints.maxWidth - (horizontalMargin * 2)).clamp(0, double.infinity);
+    final availableWidth = (constraints.maxWidth - (horizontalMargin * 2))
+        .clamp(0, double.infinity);
     final colWidth = isMobile ? 130.0 : (availableWidth / columnCount);
 
     final table = DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            isDark ? Colors.grey[850] : const Color(0xFFF9FAFB),
+      headingRowColor: WidgetStateProperty.all(
+        isDark ? Colors.grey[850] : const Color(0xFFF9FAFB),
+      ),
+      dataRowMinHeight: 52,
+      dataRowMaxHeight: 52,
+      headingRowHeight: 52,
+      horizontalMargin: horizontalMargin,
+      columnSpacing: 0,
+      columns: [
+        DataColumn(
+          // headingRowAlignment: MainAxisAlignment.start,
+          label: SizedBox(
+            width: colWidth,
+            child: Center(
+              child: Text(
+                'Year',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+            ),
           ),
-          dataRowMinHeight: 52,
-          dataRowMaxHeight: 52,
-          headingRowHeight: 52,
-          horizontalMargin: horizontalMargin,
-          columnSpacing: 0,
-          columns: [
-            DataColumn(
-              // headingRowAlignment: MainAxisAlignment.start,
-              
-              label: SizedBox(
+        ),
+        DataColumn(
+          label: SizedBox(
+            width: colWidth,
+            child: Center(
+              child: Text(
+                'Total Herd',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+            ),
+          ),
+          numeric: true,
+        ),
+        DataColumn(
+          label: SizedBox(
+            width: colWidth,
+            child: Center(
+              child: Text(
+                'Calves / Heifers',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+            ),
+          ),
+          numeric: true,
+        ),
+        DataColumn(
+          label: SizedBox(
+            width: colWidth,
+            child: Center(
+              child: Text(
+                'Mothers (60+m)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+            ),
+          ),
+          numeric: true,
+        ),
+        DataColumn(
+          label: SizedBox(
+            width: colWidth,
+            child: Center(
+              child: Text(
+                'Total Asset Value',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
+              ),
+            ),
+          ),
+          numeric: true,
+        ),
+      ],
+      rows: _assetMarketValue.map((asset) {
+        // Sum all non-mothers as Calves/Heifers
+        final totalBuffs = asset['totalBuffaloes'] as int? ?? 0;
+        final motherCount = asset['motherBuffaloes'] as int? ?? 0;
+        final calfCount = totalBuffs - motherCount;
+
+        final totalVal = (asset['totalAssetValue'] as num?)?.toDouble() ?? 0.0;
+        final yearLabel = asset['label'] as String; // e.g., "Year 1"
+
+        return DataRow(
+          cells: [
+            DataCell(
+              SizedBox(
                 width: colWidth,
                 child: Center(
                   child: Text(
-                    'Year',
+                    yearLabel,
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.grey[900],
                     ),
                   ),
                 ),
               ),
             ),
-            DataColumn(
-             
-              label: SizedBox(
+            DataCell(
+              SizedBox(
                 width: colWidth,
                 child: Center(
                   child: Text(
-                    'Total Herd',
+                    '$totalBuffs',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : Colors.grey[800],
                     ),
                   ),
                 ),
               ),
-              numeric: true,
             ),
-            DataColumn(
-           
-              label: SizedBox(
+            DataCell(
+              SizedBox(
                 width: colWidth,
                 child: Center(
                   child: Text(
-                    'Calves (0-6m)',
+                    '$calfCount',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : Colors.grey[700],
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
                     ),
                   ),
                 ),
               ),
-              numeric: true,
             ),
-            DataColumn(
-             
-              label: SizedBox(
+            DataCell(
+              SizedBox(
                 width: colWidth,
                 child: Center(
                   child: Text(
-                    'Mothers (60+m)',
+                    '$motherCount',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : Colors.grey[700],
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
                     ),
                   ),
                 ),
               ),
-              numeric: true,
             ),
-            DataColumn(
-            
-              label: SizedBox(
+            DataCell(
+              SizedBox(
                 width: colWidth,
                 child: Center(
                   child: Text(
-                    'Total Asset Value',
+                    widget.formatCurrency(totalVal),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : Colors.grey[700],
+                      color: isDark ? Colors.green[300] : Colors.green[700],
                     ),
                   ),
                 ),
               ),
-              numeric: true,
             ),
           ],
-          rows: _assetMarketValue.map((asset) {
-            final ageCats =
-                asset['ageCategories'] as Map<String, Map<String, num>>;
-
-            int getCount(String key) {
-              if (ageCats.containsKey(key)) {
-                return (ageCats[key]!['count'] as num).toInt();
-              }
-              // Try fallback if formatting differs
-              final cleanKey = key
-                  .replaceAll(' (Calves)', '')
-                  .replaceAll(' (Mother Buffalo)', '');
-              if (ageCats.containsKey(cleanKey)) {
-                return (ageCats[cleanKey]!['count'] as num).toInt();
-              }
-              return 0;
-            }
-
-            final calfCount = getCount('0-6 months (Calves)');
-            final motherCount = getCount('60+ months (Mother Buffalo)');
-            final totalVal =
-                (asset['totalAssetValue'] as num?)?.toDouble() ?? 0.0;
-            final yearLabel = asset['label'] as String; // e.g., "Year 1"
-
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: colWidth,
-                    child: Center(
-                      child: Text(
-                        yearLabel,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.grey[900],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: colWidth,
-                    child: Center(
-                      child: Text(
-                        '${asset['totalBuffaloes']}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : Colors.grey[800],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: colWidth,
-                    child: Center(
-                      child: Text(
-                        '$calfCount',
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: colWidth,
-                    child: Center(
-                      child: Text(
-                        '$motherCount',
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: colWidth,
-                    child: Center(
-                      child: Text(
-                        widget.formatCurrency(totalVal),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.green[300] : Colors.green[700],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
         );
+      }).toList(),
+    );
 
     if (isMobile) {
       return SingleChildScrollView(
@@ -718,10 +667,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
       );
     }
 
-    return Align(
-      alignment: Alignment.topCenter,
-      child: table,
-    );
+    return Align(alignment: Alignment.topCenter, child: table);
   }
 
   Widget _buildDesktopAssetTable(
@@ -903,7 +849,7 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
                     ),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.blue[900]!.withValues(alpha: 0.5)
+                          ? Colors.blue[900]!.withOpacity(0.5)
                           : Colors.blue[50],
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -978,6 +924,313 @@ class _AssetMarketValueWidgetState extends State<AssetMarketValueWidget> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHeaderSummaryCards(bool isDark, bool isMobile) {
+    if (_assetMarketValue.isEmpty) return const SizedBox.shrink();
+
+    // 1. Initial Stats (Year 1)
+    final initialStats = _assetMarketValue.first;
+
+    // 2. Final Stats (Last Year)
+    final finalStats = _assetMarketValue.last;
+
+    return isMobile
+        ? Column(
+            children: [
+              _buildSummaryCard(
+                initialStats,
+                'Initial Asset Stats',
+                Colors.blue,
+                isDark,
+              ),
+              const SizedBox(height: 12),
+              _buildSummaryCard(
+                finalStats,
+                'Final Year Stats',
+                Colors.purple,
+                isDark,
+              ),
+            ],
+          )
+        : Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  initialStats,
+                  'Initial Asset Stats',
+                  Colors.blue,
+                  isDark,
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: _buildSummaryCard(
+                  finalStats,
+                  'Final Year Stats',
+                  Colors.purple,
+                  isDark,
+                ),
+              ),
+            ],
+          );
+  }
+
+  Widget _buildSummaryCard(
+    Map<String, dynamic> stats,
+    String title,
+    MaterialColor color,
+    bool isDark,
+  ) {
+    final totalBuffs = stats['totalBuffaloes'] as int? ?? 0;
+    final motherCount = stats['motherBuffaloes'] as int? ?? 0;
+    final calfCount = totalBuffs - motherCount;
+    final totalVal = (stats['totalAssetValue'] as num?)?.toDouble() ?? 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? color.shade900 : color.shade100,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? color.shade900.withOpacity(0.3)
+                      : color.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.analytics_outlined,
+                  color: isDark ? color.shade200 : color.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.formatCurrency(totalVal),
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: isDark ? color.shade200 : color.shade800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Total Asset Value',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStat(totalBuffs.toString(), 'Total', isDark),
+              _buildStat(motherCount.toString(), 'Mothers', isDark),
+              _buildStat(calfCount.toString(), 'Calves / Heifers', isDark),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStat(String value, String label, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: isDark ? Colors.grey[500] : Colors.grey[500],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPriceScheduleValues(bool isDark, bool isMobile) {
+    final schedule = [
+      {
+        'label': 'Calf',
+        'range': '0-12 months',
+        'price': '₹10,000',
+        'color': Colors.blue,
+      },
+      {
+        'label': 'Growing',
+        'range': '13-18 months',
+        'price': '₹25,000',
+        'color': Colors.indigo,
+      },
+      {
+        'label': 'Heifer',
+        'range': '19-24 months',
+        'price': '₹40,000',
+        'color': Colors.teal,
+      },
+      {
+        'label': 'Mature',
+        'range': '25-34 months',
+        'price': '₹1,00,000',
+        'color': Colors.cyan,
+      },
+      {
+        'label': 'Prime',
+        'range': '35-40 months',
+        'price': '₹1,50,000',
+        'color': Colors.green,
+      },
+      {
+        'label': 'Peak',
+        'range': '41-48 months',
+        'price': '₹1,75,000',
+        'color': Colors.lightGreen,
+      },
+      {
+        'label': 'Proven',
+        'range': '49+ months',
+        'price': '₹2,00,000',
+        'color': Colors.amber,
+      },
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'Age-Based Price Schedule',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.grey[900],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: schedule.map((item) {
+              final color = item['color'] as MaterialColor;
+              return _buildPriceCard(
+                item['label'] as String,
+                item['range'] as String,
+                item['price'] as String,
+                color,
+                isDark,
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceCard(
+    String label,
+    String range,
+    String price,
+    MaterialColor color,
+    bool isDark,
+  ) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? color.shade900.withOpacity(0.2) : color.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? color.shade700 : color.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            range,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.grey[400] : Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            price,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.grey[900],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? color.shade200 : color.shade700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
